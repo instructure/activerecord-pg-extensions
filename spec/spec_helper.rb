@@ -12,6 +12,8 @@ class Application < Rails::Application
 end
 Application.initialize!
 
+ActiveRecord::Tasks::DatabaseTasks.create_all
+
 module StatementCaptureConnection
   def dont_execute
     @dont_execute = true

@@ -17,7 +17,7 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "https://github.com/instructure/activerecord-pg-extensions/blob/main/CHANGELOG.md"
 
   spec.files = Dir["lib/**/*"] + ["LICENSE", "README.md", "CHANGELOG.md"]
-  spec.test_files = Dir["spec/**/*"] + [".travis.yml", "config/database.yml"]
+  spec.test_files = Dir["spec/**/*"] + ["config/database.yml"]
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activerecord", ">= 6.0", "< 6.2"
@@ -30,5 +30,4 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rubocop", "~> 1.7"
   spec.add_development_dependency "rubocop-rake", "~> 0.5"
   spec.add_development_dependency "rubocop-rspec", "~> 2.3"
-  spec.add_development_dependency "wwtd", "~> 1.4"
 end

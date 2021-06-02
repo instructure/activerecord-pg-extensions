@@ -16,7 +16,10 @@ See individual classes for available methods.
 
 ## Development
 
-You will need to create a Postgres database locally called `travis_ci_test` in order to run tests. `rake` will run both tests and Rubocop.
+You will need Postgres locally to test. As long as `psql` can connect with no arguments, you're fine. Otherwise use environment variables
+as described at https://www.postgresql.org/docs/current/libpq-envars.html to configure it. The database will be created automatically.
+
+`rake` will run both tests and Rubocop.
 
 After checking out the repo, run `bundle install` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
