@@ -1,0 +1,17 @@
+AllCops:
+  TargetRubyVersion: 2.6
+  NewCops: enable
+
+Style/StringLiterals:
+  Enabled: true
+  EnforcedStyle: double_quotes
+
+Layout/LineLength:
+  Max: 120
+
+Naming/FileName:
+  Exclude:
+    - lib/activerecord-pg-extensions.rb
+
+Metrics:
+  Enabled: false

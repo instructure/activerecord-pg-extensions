@@ -1,0 +1,11 @@
+---
+language: ruby
+cache: bundler
+services:
+   - postgresql
+rvm:
+  - 2.6
+  - 2.7
+before_install: gem install bundler -v 2.2.17
+before_script:
+  - psql -c 'create database travis_ci_test;' -U postgres
