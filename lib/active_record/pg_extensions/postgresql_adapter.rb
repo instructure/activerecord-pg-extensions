@@ -14,6 +14,16 @@ module ActiveRecord
         constraints = "ALL" if constraints.empty?
         execute("SET CONSTRAINTS #{constraints} #{deferred.to_s.upcase}")
       end
+
+      # defers constraints, yields to the caller, and then resets back to immediate
+      # note that the reset back to immediate is _not_ in an ensure block, since any
+      # error thrown would likely mean the transaction is rolled back, and setting
+      # constraint checking back to immediate would also fail
+      def defer_constraints(*constraints)
+        set_constraints(:deferred, *constraints)
+        yield
+        set_constraints(:immediate, *constraints)
+      end
     end
   end
 end
