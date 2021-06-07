@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    activerecord-pg-extensions (0.1.0)
+    activerecord-pg-extensions (0.1.1)
       activerecord (>= 6.0, < 6.2)
       railties (>= 6.0, < 6.2)
 

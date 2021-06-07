@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
 
   spec.metadata["changelog_uri"] = "https://github.com/instructure/activerecord-pg-extensions/blob/main/CHANGELOG.md"
 
-  spec.files = Dir["lib/**/*"] + ["LICENSE", "README.md", "CHANGELOG.md"]
+  spec.files = Dir["lib/**/*"] + ["LICENSE.txt", "README.md", "CHANGELOG.md"]
   spec.test_files = Dir["spec/**/*"] + ["config/database.yml"]
   spec.require_paths = ["lib"]
 
