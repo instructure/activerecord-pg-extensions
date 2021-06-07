@@ -229,5 +229,19 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.executed_statements).to eq ['VACUUM ANALYZE "table1", "my_table" ("column1", "column2")']
       end
     end
+
+    describe "#wal_lsn_diff" do
+      skip unless connection.wal?
+
+      it "executes" do
+        expect(connection.wal_lsn_diff(:current, :current)).to eq 0
+      end
+    end
+
+    describe "#in_recovery?" do
+      it "works" do
+        expect(connection.in_recovery?).to eq false
+      end
+    end
   end
 end
