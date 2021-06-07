@@ -40,4 +40,25 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       expect(connection.executed_statements).to eq ["SET CONSTRAINTS ALL DEFERRED", "SET CONSTRAINTS ALL IMMEDIATE"]
     end
   end
+
+  describe "#set_replica_identity" do
+    around do |example|
+      connection.dont_execute(&example)
+    end
+
+    it "resets identity" do
+      connection.set_replica_identity(:my_table)
+      expect(connection.executed_statements).to eq ['ALTER TABLE "my_table" REPLICA IDENTITY DEFAULT']
+    end
+
+    it "sets full identity" do
+      connection.set_replica_identity(:my_table, :full)
+      expect(connection.executed_statements).to eq ['ALTER TABLE "my_table" REPLICA IDENTITY FULL']
+    end
+
+    it "sets an index" do
+      connection.set_replica_identity(:my_table, :my_index)
+      expect(connection.executed_statements).to eq ['ALTER TABLE "my_table" REPLICA IDENTITY USING INDEX "my_index"']
+    end
+  end
 end

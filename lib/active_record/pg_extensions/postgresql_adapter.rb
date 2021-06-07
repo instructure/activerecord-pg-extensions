@@ -24,6 +24,17 @@ module ActiveRecord
         yield
         set_constraints(:immediate, *constraints)
       end
+
+      # see https://www.postgresql.org/docs/current/sql-altertable.html#SQL-CREATETABLE-REPLICA-IDENTITY
+      def set_replica_identity(table, identity = :default)
+        identity_clause = case identity
+                          when :default, :full, :nothing
+                            identity.to_s.upcase
+                          else
+                            "USING INDEX #{quote_column_name(identity)}"
+                          end
+        execute("ALTER TABLE #{quote_table_name(table)} REPLICA IDENTITY #{identity_clause}")
+      end
     end
   end
 end
