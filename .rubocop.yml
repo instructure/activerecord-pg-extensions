@@ -6,6 +6,9 @@ Style/StringLiterals:
   Enabled: true
   EnforcedStyle: double_quotes
 
+Style/DocumentDynamicEvalDefinition:
+  Enabled: false
+
 Layout/LineLength:
   Max: 120
 

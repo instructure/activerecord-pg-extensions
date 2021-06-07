@@ -34,4 +34,55 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       )
     end
   end
+
+  describe "#add_foreign_key" do
+    it "does nothing extra if a transaction is already active" do
+      connection.transaction do
+        connection.add_foreign_key :emails, :users, delay_validation: true
+      end
+      expect(connection.executed_statements).to match(
+        ["BEGIN",
+         match(/\AALTER TABLE "emails" ADD CONSTRAINT "fk_rails_[0-9a-f]+".+REFERENCES "users" \("id"\)\s*\z/m),
+         "COMMIT"]
+      )
+    end
+
+    it "delays validation" do
+      connection.add_foreign_key :emails, :users, delay_validation: true
+      expect(connection.executed_statements).to match(
+        [/convalidated/,
+         match(/\AALTER TABLE "emails" ADD CONSTRAINT "[a-z0-9_]+".+REFERENCES "users" \("id"\)\s+NOT VALID\z/m),
+         match(/^ALTER TABLE "emails" VALIDATE CONSTRAINT "fk_rails_[0-9a-f]+"/)]
+      )
+    end
+
+    it "only validates if the constraint already exists, and is not valid" do
+      expect(connection).to receive(:select_value).with(/convalidated/, "SCHEMA").and_return(false)
+      connection.add_foreign_key :emails, :users, delay_validation: true
+      expect(connection.executed_statements).to match(
+        [match(/^ALTER TABLE "emails" VALIDATE CONSTRAINT "fk_rails_[0-9a-f]+"/)]
+      )
+    end
+
+    it "does nothing if constraint already exists" do
+      expect(connection).to receive(:select_value).with(/convalidated/, "SCHEMA").and_return(true)
+      connection.add_foreign_key :emails, :users, if_not_exists: true
+      expect(connection.executed_statements).to eq []
+    end
+
+    it "still tries if delay_validation is true but if_not_exists is false and it already exists" do
+      expect(connection).to receive(:select_value).with(/convalidated/, "SCHEMA").and_return(true)
+      connection.add_foreign_key :emails, :users, delay_validation: true
+      expect(connection.executed_statements).to match(
+        [match(/\AALTER TABLE "emails" ADD CONSTRAINT "[a-z0-9_]+".+REFERENCES "users" \("id"\)\s+NOT VALID\z/m),
+         match(/^ALTER TABLE "emails" VALIDATE CONSTRAINT "fk_rails_[0-9a-f]+"/)]
+      )
+    end
+
+    it "does nothing if_not_exists is true and it is NOT VALID" do
+      expect(connection).to receive(:select_value).with(/convalidated/, "SCHEMA").and_return(false)
+      connection.add_foreign_key :emails, :users, if_not_exists: true
+      expect(connection.executed_statements).to eq []
+    end
+  end
 end
