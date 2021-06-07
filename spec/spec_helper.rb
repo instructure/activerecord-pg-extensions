@@ -3,6 +3,7 @@
 require "activerecord-pg-extensions"
 require "byebug"
 require "active_record/railtie"
+require "active_record/pg_extensions/all"
 
 ActiveRecord::Base # rubocop:disable Lint/Void
 Rails.env = "test"
@@ -27,6 +28,7 @@ module StatementCaptureConnection
   end
 
   def execute(statement, *)
+    materialize_transactions # this still needs to get called, even if we skip actually executing
     executed_statements << statement
     super unless @dont_execute
   end

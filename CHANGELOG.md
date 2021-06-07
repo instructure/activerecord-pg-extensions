@@ -4,6 +4,7 @@
 - Add methods for discovering and managing extensions
 - Add method to temporarily add a schema to the search path
 - Add PostgreSQLAdapter#vacuum
+- Add optional module PessimisticMigrations
 
 ## [0.1.1] - 2021-06-07
 

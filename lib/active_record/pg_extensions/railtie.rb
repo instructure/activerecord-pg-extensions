@@ -11,6 +11,8 @@ module ActiveRecord
           require "active_record/pg_extensions/postgresql_adapter"
 
           ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.include(PostgreSQLAdapter)
+          # if they've already require 'all', then inject now
+          defined?(All) && All.inject
         end
       end
     end
