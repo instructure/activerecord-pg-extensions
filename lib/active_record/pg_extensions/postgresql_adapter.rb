@@ -125,6 +125,46 @@ module ActiveRecord
           raise manual_rollback if manual_rollback
         end
       end
+
+      # see https://www.postgresql.org/docs/current/sql-vacuum.html
+      def vacuum(*table_and_columns,
+                 full: false,
+                 freeze: false,
+                 verbose: false,
+                 analyze: false,
+                 disable_page_skipping: false,
+                 skip_locked: false,
+                 index_cleanup: false,
+                 truncate: false,
+                 parallel: nil)
+        if parallel && !(parallel.is_a?(Integer) && parallel.positive?)
+          raise ArgumentError, "parallel must be a positive integer"
+        end
+
+        sql = +"VACUUM"
+        sql << " FULL" if full
+        sql << " FREEZE" if freeze
+        sql << " VERBOSE" if verbose
+        sql << " ANALYZE" if analyze
+        sql << " DISABLE_PAGE_SKIPPING" if disable_page_skipping
+        sql << " SKIP_LOCKED" if skip_locked
+        sql << " INDEX_CLEANUP" if index_cleanup
+        sql << " TRUNCATE" if truncate
+        sql << " PARALLEL #{parallel}" if parallel
+        sql << " " unless table_and_columns.empty?
+        sql << table_and_columns.map do |table|
+          if table.is_a?(Hash)
+            raise ArgumentError, "columns may only be specified if a analyze is specified" unless analyze
+
+            table.map do |table_name, columns|
+              "#{quote_table_name(table_name)} (#{Array.wrap(columns).map { |c| quote_column_name(c) }.join(', ')})"
+            end.join(", ")
+          else
+            quote_table_name(table)
+          end
+        end.join(", ")
+        execute(sql)
+      end
     end
   end
 end
