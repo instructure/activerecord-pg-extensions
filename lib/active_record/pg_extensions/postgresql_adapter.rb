@@ -235,6 +235,12 @@ module ActiveRecord
 
       private
 
+      def initialize_type_map(map = type_map)
+        map.register_type "pg_lsn", ActiveRecord::ConnectionAdapters::PostgreSQL::OID::SpecializedString.new(:pg_lsn)
+
+        super
+      end
+
       def pre_pg10_wal_function_name(func)
         return func if postgresql_version >= 100_000
 
