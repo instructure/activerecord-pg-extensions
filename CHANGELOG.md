@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.2.0] - 2021-06-07
+
 - Add PostgreSQLAdapter#set_replica_identity
 - Add methods for discovering and managing extensions
 - Add method to temporarily add a schema to the search path
