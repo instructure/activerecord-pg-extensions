@@ -61,4 +61,118 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       expect(connection.executed_statements).to eq ['ALTER TABLE "my_table" REPLICA IDENTITY USING INDEX "my_index"']
     end
   end
+
+  context "extensions" do
+    it "creates and drops an extension" do
+      connection.create_extension(:pg_trgm, schema: "public")
+      expect(connection.executed_statements).to eq ["CREATE EXTENSION pg_trgm SCHEMA public"]
+      expect(ext = connection.extension(:pg_trgm)).not_to be_nil
+      expect(ext.schema).to eq "public"
+      expect(ext.version).not_to be_nil
+      expect(ext.name).to eq "pg_trgm"
+    ensure
+      connection.executed_statements.clear
+      connection.drop_extension(:pg_trgm, if_exists: true)
+      expect(connection.executed_statements).to eq ["DROP EXTENSION IF EXISTS pg_trgm"]
+      expect(connection.extension(:pg_trgm)).to be_nil
+    end
+
+    it "doesn't try to recreate" do
+      connection.create_extension(:pg_trgm, schema: "public")
+      connection.create_extension(:pg_trgm, schema: "public", if_not_exists: true)
+      expect(connection.executed_statements).to eq ["CREATE EXTENSION pg_trgm SCHEMA public",
+                                                    "CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public"]
+    ensure
+      connection.drop_extension(:pg_trgm, if_exists: true)
+    end
+
+    context "non-executing" do
+      around do |example|
+        connection.dont_execute(&example)
+      end
+
+      it "supports all options on create" do
+        connection.create_extension(:my_extension, if_not_exists: true, schema: "public", version: "2.0", cascade: true)
+        expect(connection.executed_statements).to eq(
+          ["CREATE EXTENSION IF NOT EXISTS my_extension SCHEMA public VERSION '2.0' CASCADE"]
+        )
+      end
+
+      it "supports all options on drop" do
+        connection.drop_extension(:my_extension, if_exists: true, cascade: true)
+        expect(connection.executed_statements).to eq ["DROP EXTENSION IF EXISTS my_extension CASCADE"]
+      end
+
+      it "can update an extensions" do
+        connection.alter_extension(:my_extension, version: true)
+        expect(connection.executed_statements).to eq ["ALTER EXTENSION my_extension UPDATE"]
+      end
+
+      it "can update to a specific version" do
+        connection.alter_extension(:my_extension, version: "2.0")
+        expect(connection.executed_statements).to eq ["ALTER EXTENSION my_extension UPDATE TO '2.0'"]
+      end
+
+      it "can change schemas" do
+        connection.alter_extension(:my_extension, schema: "my_app")
+        expect(connection.executed_statements).to eq ["ALTER EXTENSION my_extension SET SCHEMA my_app"]
+      end
+
+      it "cannot change schema and update" do
+        expect { connection.alter_extension(:my_extension, schema: "my_app", version: "2.0") }
+          .to raise_error(ArgumentError)
+      end
+
+      it "can drop multiple extensions" do
+        connection.drop_extension(:my_extension1, :my_extension2)
+        expect(connection.executed_statements).to eq ["DROP EXTENSION my_extension1, my_extension2"]
+      end
+
+      it "does not allow dropping no extensions" do
+        expect { connection.drop_extension }.to raise_error(ArgumentError)
+      end
+    end
+  end
+
+  describe "#add_schema_to_search_path" do
+    around do |example|
+      original_search_path = connection.schema_search_path
+      connection.schema_search_path = "public"
+      example.call
+    ensure
+      connection.schema_search_path = original_search_path
+    end
+
+    it "adds a schema to search path" do
+      connection.add_schema_to_search_path("postgis") do
+        expect(connection.schema_search_path).to eq "public,postgis"
+      end
+      expect(connection.schema_search_path).to eq "public"
+    end
+
+    it "doesn't duplicate an existing schema" do
+      connection.add_schema_to_search_path("public") do
+        expect(connection.schema_search_path).to eq "public"
+      end
+      expect(connection.schema_search_path).to eq "public"
+    end
+
+    it "is cleaned up properly when the transaction rolls back manually" do
+      expect do
+        connection.add_schema_to_search_path("postgis") do
+          raise ActiveRecord::Rollback
+        end
+      end.to raise_error(ActiveRecord::Rollback)
+      expect(connection.schema_search_path).to eq "public"
+    end
+
+    it "is cleaned up properly when the transaction rolls back" do
+      expect do
+        connection.add_schema_to_search_path("postgis") do
+          connection.execute("gibberish")
+        end
+      end.to raise_error(ActiveRecord::StatementInvalid)
+      expect(connection.schema_search_path).to eq "public"
+    end
+  end
 end
