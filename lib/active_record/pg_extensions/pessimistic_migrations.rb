@@ -45,6 +45,38 @@ module ActiveRecord
         super(from_table, to_table, **options) unless valid == false
         validate_constraint(from_table, options[:name]) if delay_validation
       end
+
+      # will automatically remove a NOT VALID index before trying to add
+      def add_index(table_name, column_name, options = {})
+        # catch a concurrent index add that fails because it already exists, and is invalid
+        if options[:algorithm] == :concurrently || options[:if_not_exists]
+          column_names = index_column_names(column_name)
+          index_name = options[:name].to_s if options.key?(:name)
+          index_name ||= index_name(table_name, column_names)
+
+          index = quoted_scope(index_name)
+          table = quoted_scope(table_name)
+          valid = select_value(<<~SQL, "SCHEMA")
+            SELECT indisvalid
+            FROM pg_class t
+            INNER JOIN pg_index d ON t.oid = d.indrelid
+            INNER JOIN pg_class i ON d.indexrelid = i.oid
+            WHERE i.relkind = 'i'
+              AND i.relname = #{index[:name]}
+              AND t.relname = #{table[:name]}
+              AND i.relnamespace IN (SELECT oid FROM pg_namespace WHERE nspname = #{index[:schema]} )
+            LIMIT 1
+          SQL
+          if valid == false && options[:algorithm] == :concurrently
+            remove_index(table_name, name: index_name,
+                                     algorithm: :concurrently)
+          end
+          return if options[:if_not_exists] && valid == true
+        end
+        # Rails.version: can stop doing this in Rails 6.2, when it's natively supported
+        options.delete(:if_not_exists)
+        super
+      end
     end
   end
 end

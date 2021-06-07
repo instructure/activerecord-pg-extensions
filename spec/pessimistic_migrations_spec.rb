@@ -85,4 +85,23 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       expect(connection.executed_statements).to eq []
     end
   end
+
+  describe "#add_index" do
+    it "removes a NOT VALID index before re-adding" do
+      expect(connection).to receive(:select_value).with(/indisvalid/, "SCHEMA").and_return(false)
+      expect(connection).to receive(:remove_index).with(:users, name: "index_users_on_name", algorithm: :concurrently)
+
+      connection.add_index :users, :name, algorithm: :concurrently
+      expect(connection.executed_statements).to eq(
+        ['CREATE INDEX CONCURRENTLY "index_users_on_name" ON "users" ("name")']
+      )
+    end
+
+    it "does nothing if the index already exists" do
+      expect(connection).to receive(:select_value).with(/indisvalid/, "SCHEMA").and_return(true)
+
+      connection.add_index :users, :name, if_not_exists: true
+      expect(connection.executed_statements).to eq []
+    end
+  end
 end
