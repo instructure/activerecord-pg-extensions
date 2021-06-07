@@ -175,4 +175,59 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       expect(connection.schema_search_path).to eq "public"
     end
   end
+
+  describe "#vacuum" do
+    it "does a straight vacuum of everything" do
+      connection.vacuum
+      expect(connection.executed_statements).to eq ["VACUUM"]
+    end
+
+    it "supports several options" do
+      connection.vacuum(analyze: true, verbose: true)
+      expect(connection.executed_statements).to eq ["VACUUM VERBOSE ANALYZE"]
+    end
+
+    it "validates parallel option is an integer" do
+      expect { connection.vacuum(parallel: :garbage) }.to raise_error(ArgumentError)
+    end
+
+    it "validates parallel option is postive" do
+      expect { connection.vacuum(parallel: -1) }.to raise_error(ArgumentError)
+    end
+
+    context "non-executing" do
+      around do |example|
+        connection.dont_execute(&example)
+      end
+
+      it "vacuums a table" do
+        connection.vacuum(:my_table)
+        expect(connection.executed_statements).to eq ['VACUUM "my_table"']
+      end
+
+      it "vacuums multiple tables" do
+        connection.vacuum(:table1, :table2)
+        expect(connection.executed_statements).to eq ['VACUUM "table1", "table2"']
+      end
+
+      it "requires analyze with specific columns" do
+        expect { connection.vacuum({ my_table: :column1 }) }.to raise_error(ArgumentError)
+      end
+
+      it "analyzes a specific column" do
+        connection.vacuum({ my_table: :column }, analyze: true)
+        expect(connection.executed_statements).to eq ['VACUUM ANALYZE "my_table" ("column")']
+      end
+
+      it "analyzes multiples columns" do
+        connection.vacuum({ my_table: %i[column1 column2] }, analyze: true)
+        expect(connection.executed_statements).to eq ['VACUUM ANALYZE "my_table" ("column1", "column2")']
+      end
+
+      it "analyzes a mixture of tables and columns" do
+        connection.vacuum(:table1, { my_table: %i[column1 column2] }, analyze: true)
+        expect(connection.executed_statements).to eq ['VACUUM ANALYZE "table1", "my_table" ("column1", "column2")']
+      end
+    end
+  end
 end
