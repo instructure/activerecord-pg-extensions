@@ -165,6 +165,81 @@ module ActiveRecord
         end.join(", ")
         execute(sql)
       end
+
+      # Amazon Aurora doesn't have a WAL
+      def wal?
+        unless instance_variable_defined?(:@has_wal)
+          function_name = pre_pg10_wal_function_name("pg_current_wal_lsn")
+          @has_wal = select_value("SELECT true FROM pg_proc WHERE proname='#{function_name}' LIMIT 1")
+        end
+        @has_wal
+      end
+
+      # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.5.5.2.2.4.1.1.1
+      def current_wal_lsn
+        return nil unless wal?
+
+        select_value("SELECT #{pre_pg10_wal_function_name('pg_current_wal_lsn')}()")
+      end
+
+      # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.5.5.2.2.2.1.1.1
+      def current_wal_flush_lsn
+        return nil unless wal?
+
+        select_value("SELECT #{pre_pg10_wal_function_name('pg_current_wal_flush_lsn')}()")
+      end
+
+      # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.5.5.2.2.3.1.1.1
+      def current_wal_insert_lsn
+        return nil unless wal?
+
+        select_value("SELECT #{pre_pg10_wal_function_name('pg_current_wal_insert_lsn')}()")
+      end
+
+      # https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.6.3.2.2.2.1.1.1
+      def last_wal_receive_lsn
+        return nil unless wal?
+
+        select_value("SELECT #{pre_pg10_wal_function_name('pg_last_wal_receive_lsn')}()")
+      end
+
+      # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.6.3.2.2.3.1.1.1
+      def last_wal_replay_lsn
+        return nil unless wal?
+
+        select_value("SELECT #{pre_pg10_wal_function_name('pg_last_wal_replay_lsn')}()")
+      end
+
+      # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.5.5.2.2.4.1.1.1
+      # lsns can be literals, or :current, :current_flush, :current_insert, :last_receive, or :last_replay
+      def wal_lsn_diff(lsn1 = :current, lsn2 = :last_replay)
+        return nil unless wal?
+
+        lsns = [lsn1, lsn2].map do |lsn|
+          case lsn
+          when :current then pre_pg10_wal_function_name("pg_current_wal_lsn()")
+          when :current_flush then pre_pg10_wal_function_name("pg_current_flush_wal_lsn()")
+          when :current_insert then pre_pg10_wal_function_name("pg_current_insert_wal_lsn()")
+          when :last_receive then pre_pg10_wal_function_name("pg_last_wal_receive_lsn()")
+          when :last_replay then pre_pg10_wal_function_name("pg_last_wal_replay_lsn()")
+          else; quote(lsn)
+          end
+        end
+
+        select_value("SELECT #{pre_pg10_wal_function_name('pg_wal_lsn_diff')}(#{lsns[0]}, #{lsns[1]})")
+      end
+
+      def in_recovery?
+        select_value("SELECT pg_is_in_recovery()")
+      end
+
+      private
+
+      def pre_pg10_wal_function_name(func)
+        return func if postgresql_version >= 100_000
+
+        func.sub("wal", "xlog").sub("lsn", "location")
+      end
     end
   end
 end
