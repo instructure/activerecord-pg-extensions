@@ -47,6 +47,7 @@ module ActiveRecord
         sql << " VERSION #{quote(version)}" if version
         sql << " CASCADE" if cascade
         execute(sql)
+        reload_type_map
         @extensions&.delete(extension.to_s)
       end
 
@@ -61,6 +62,7 @@ module ActiveRecord
         sql << " TO #{quote(version)}" if version && version != true
         sql << " SET SCHEMA #{schema}" if schema
         execute(sql)
+        reload_type_map
         @extensions&.delete(extension.to_s)
       end
 
@@ -73,6 +75,7 @@ module ActiveRecord
         sql << extensions.join(", ")
         sql << " CASCADE" if cascade
         execute(sql)
+        reload_type_map
         @extensions&.except!(*extensions.map(&:to_s))
       end
 
