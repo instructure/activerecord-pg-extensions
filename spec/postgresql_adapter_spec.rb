@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
+  before do
+    allow(connection).to receive(:reload_type_map)
+  end
+
   describe "#set_constraints" do
     around do |example|
       connection.dont_execute(&example)
