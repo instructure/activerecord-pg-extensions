@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [0.2.1] - 2021-06-22
+
+- Ensure numeric is in the PG type map for Rails 6.0. So that lsn_diff will
+  return a numeric, instead of a string.
+
 ## [0.2.0] - 2021-06-07
 
 - Add PostgreSQLAdapter#set_replica_identity

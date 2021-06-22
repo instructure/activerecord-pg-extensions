@@ -235,6 +235,51 @@ module ActiveRecord
 
       private
 
+      if ::Rails.version < "6.1"
+        # significant change: add PG::TextDecoder::Numeric
+        def add_pg_decoders
+          @default_timezone = nil
+          @timestamp_decoder = nil
+
+          coders_by_name = {
+            "int2" => PG::TextDecoder::Integer,
+            "int4" => PG::TextDecoder::Integer,
+            "int8" => PG::TextDecoder::Integer,
+            "oid" => PG::TextDecoder::Integer,
+            "float4" => PG::TextDecoder::Float,
+            "float8" => PG::TextDecoder::Float,
+            "bool" => PG::TextDecoder::Boolean,
+            "numeric" => PG::TextDecoder::Numeric
+          }
+
+          if defined?(PG::TextDecoder::TimestampUtc)
+            # Use native PG encoders available since pg-1.1
+            coders_by_name["timestamp"] = PG::TextDecoder::TimestampUtc
+            coders_by_name["timestamptz"] = PG::TextDecoder::TimestampWithTimeZone
+          end
+
+          known_coder_types = coders_by_name.keys.map { |n| quote(n) }
+          query = <<~SQL.format(known_coder_types.join(", "))
+            SELECT t.oid, t.typname
+            FROM pg_type as t
+            WHERE t.typname IN (%s)
+          SQL
+          coders = execute_and_clear(query, "SCHEMA", []) do |result|
+            result
+              .map { |row| construct_coder(row, coders_by_name[row["typname"]]) }
+              .compact
+          end
+
+          map = PG::TypeMapByOid.new
+          coders.each { |coder| map.add_coder(coder) }
+          @connection.type_map_for_results = map
+
+          # extract timestamp decoder for use in update_typemap_for_default_timezone
+          @timestamp_decoder = coders.find { |coder| coder.name == "timestamp" }
+          update_typemap_for_default_timezone
+        end
+      end
+
       def initialize_type_map(map = type_map)
         map.register_type "pg_lsn", ActiveRecord::ConnectionAdapters::PostgreSQL::OID::SpecializedString.new(:pg_lsn)
 

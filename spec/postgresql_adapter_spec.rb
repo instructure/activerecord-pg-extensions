@@ -243,5 +243,11 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.in_recovery?).to eq false
       end
     end
+
+    describe "#select_value" do
+      it "has casts numeric types" do
+        expect(connection.select_value("SELECT factorial(2)")).to eq 2
+      end
+    end
   end
 end
