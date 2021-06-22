@@ -79,7 +79,7 @@ module ActiveRecord
       # check if a particular extension can be installed
       def extension_available?(extension, version = nil)
         sql = +"SELECT 1 FROM "
-        sql << version ? "pg_available_extensions" : "pg_available_extension_versions"
+        sql << (version ? "pg_available_extension_versions" : "pg_available_extensions")
         sql << " WHERE name=#{quote(extension)}"
         sql << " AND version=#{quote(version)}" if version
         select_value(sql).to_i == 1
