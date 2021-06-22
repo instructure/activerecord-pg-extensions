@@ -259,7 +259,7 @@ module ActiveRecord
           end
 
           known_coder_types = coders_by_name.keys.map { |n| quote(n) }
-          query = <<~SQL.format(known_coder_types.join(", "))
+          query = format(<<~SQL, *known_coder_types.join(", "))
             SELECT t.oid, t.typname
             FROM pg_type as t
             WHERE t.typname IN (%s)

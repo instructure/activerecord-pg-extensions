@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.2.2] - 2021-06-22
+
+- Fix bug in Ruby 2.6 calling format wrong.
+
 ## [0.2.1] - 2021-06-22
 
 - Ensure numeric is in the PG type map for Rails 6.0. So that lsn_diff will
