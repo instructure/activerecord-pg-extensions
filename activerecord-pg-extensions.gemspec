@@ -23,6 +23,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "activerecord", ">= 6.0", "< 6.2"
   spec.add_dependency "railties", ">= 6.0", "< 6.2"
 
+  spec.add_development_dependency "appraisal", "~> 2.4"
   spec.add_development_dependency "byebug", "~> 11.1"
   spec.add_development_dependency "pg", "~> 1.2"
   spec.add_development_dependency "rake", "~> 13.0"
