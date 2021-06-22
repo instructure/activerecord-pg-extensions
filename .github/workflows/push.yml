@@ -11,6 +11,11 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        ruby-version: [2.7, 2.6]
+        gemfile: ['gemfiles/rails_6.0.gemfile', 'gemfiles/rails_6.1.gemfile']
+
     services:
       postgres:
         image: postgres
@@ -29,13 +34,18 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 2.6
-#          bundler-cache: true
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+        env:
+          BUNDLE_GEMFILE: ${{ matrix.gemfile }}
       - name: Install dependencies
         run: bundle install
+        env:
+          BUNDLE_GEMFILE: ${{ matrix.gemfile }}
       - name: Run tests
         run: bundle exec rake
         env:
           PGHOST: localhost
           PGUSER: postgres
           PGPASSWORD: postgres
+          BUNDLE_GEMFILE: ${{ matrix.gemfile }}

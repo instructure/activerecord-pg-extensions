@@ -1,5 +1,6 @@
 /.bundle/
 /.byebug_history
+/gemfiles/*.lock
 /log/
 /pkg/
 /workflow/

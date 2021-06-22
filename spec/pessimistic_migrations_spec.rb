@@ -92,8 +92,8 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       expect(connection).to receive(:remove_index).with(:users, name: "index_users_on_name", algorithm: :concurrently)
 
       connection.add_index :users, :name, algorithm: :concurrently
-      expect(connection.executed_statements).to eq(
-        ['CREATE INDEX CONCURRENTLY "index_users_on_name" ON "users" ("name")']
+      expect(connection.executed_statements).to match(
+        [match(/\ACREATE +INDEX CONCURRENTLY "index_users_on_name" ON "users" +\("name"\)\z/)]
       )
     end
 
