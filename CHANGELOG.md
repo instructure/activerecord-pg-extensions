@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.2.3] - 2021-06-23
+
+- Fix extension_available?
+
 ## [0.2.2] - 2021-06-22
 
 - Fix bug in Ruby 2.6 calling format wrong.

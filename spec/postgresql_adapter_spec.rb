@@ -131,6 +131,20 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       it "does not allow dropping no extensions" do
         expect { connection.drop_extension }.to raise_error(ArgumentError)
       end
+
+      describe "#extension_available?" do
+        it "works with no version constraint" do
+          connection.extension_available?(:postgis)
+          expect(connection.executed_statements).to eq ["SELECT 1 FROM pg_available_extensions WHERE name='postgis'"]
+        end
+
+        it "works with a version constraint" do
+          connection.extension_available?(:postgis, "2.0")
+          expect(connection.executed_statements).to eq(
+            ["SELECT 1 FROM pg_available_extension_versions WHERE name='postgis' AND version='2.0'"]
+          )
+        end
+      end
     end
   end
 
