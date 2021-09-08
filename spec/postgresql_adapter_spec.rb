@@ -264,4 +264,68 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       end
     end
   end
+
+  describe "#with_statement_timeout" do
+    it "stops long-running queries" do
+      expect do
+        connection.with_statement_timeout(0.01) do
+          connection.execute("SELECT pg_sleep(3)")
+        end
+      end.to raise_error(ActiveRecord::QueryTimeout)
+    end
+
+    it "re-raises other errors" do
+      expect do
+        connection.with_statement_timeout(1) do
+          connection.execute("bad sql")
+        end
+      end.to raise_error(ActiveRecord::StatementInvalid)
+    end
+
+    context "without executing" do
+      it "converts integer to ms" do
+        connection.with_statement_timeout(30) { nil }
+        expect(connection.executed_statements).to eq(
+          [
+            "BEGIN",
+            "SET LOCAL statement_timeout=30000",
+            "COMMIT"
+          ]
+        )
+      end
+
+      it "converts float to ms" do
+        connection.with_statement_timeout(5.5) { nil }
+        expect(connection.executed_statements).to eq(
+          [
+            "BEGIN",
+            "SET LOCAL statement_timeout=5500",
+            "COMMIT"
+          ]
+        )
+      end
+
+      it "converts ActiveSupport::Duration to ms" do
+        connection.with_statement_timeout(5.seconds) { nil }
+        expect(connection.executed_statements).to eq(
+          [
+            "BEGIN",
+            "SET LOCAL statement_timeout=5000",
+            "COMMIT"
+          ]
+        )
+      end
+
+      it "allows true" do
+        connection.with_statement_timeout(true) { nil }
+        expect(connection.executed_statements).to eq(
+          [
+            "BEGIN",
+            "SET LOCAL statement_timeout=30000",
+            "COMMIT"
+          ]
+        )
+      end
+    end
+  end
 end

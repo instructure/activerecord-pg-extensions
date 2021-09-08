@@ -233,6 +233,18 @@ module ActiveRecord
         select_value("SELECT pg_is_in_recovery()")
       end
 
+      def with_statement_timeout(timeout = nil)
+        timeout = 30 if timeout.nil? || timeout == true
+        transaction do
+          execute("SET LOCAL statement_timeout=#{(timeout * 1000).to_i}")
+          yield
+        rescue ActiveRecord::StatementInvalid => e
+          raise ActiveRecord::QueryTimeout.new(sql: e.sql, binds: e.binds) if e.cause.is_a?(PG::QueryCanceled)
+
+          raise
+        end
+      end
+
       private
 
       if ::Rails.version < "6.1"
