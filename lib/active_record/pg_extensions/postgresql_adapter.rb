@@ -245,6 +245,18 @@ module ActiveRecord
         end
       end
 
+      unless ::Rails.version >= "6.1"
+        def add_check_constraint(table_name, expression, name:, validate: true)
+          sql = +"ALTER TABLE #{quote_table_name(table_name)} ADD CONSTRAINT #{quote_column_name(name)} CHECK (#{expression})" # rubocop:disable Layout/LineLength
+          sql << " NOT VALID" unless validate
+          execute(sql)
+        end
+
+        def remove_check_constraint(table_name, name:)
+          execute("ALTER TABLE #{quote_table_name(table_name)} DROP CONSTRAINT #{quote_column_name(name)}")
+        end
+      end
+
       private
 
       if ::Rails.version < "6.1"
