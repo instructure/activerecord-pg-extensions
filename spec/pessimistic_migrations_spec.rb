@@ -6,32 +6,61 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
   end
 
   describe "#change_column_null" do
+    # Rails 6.1 doesn't quote the constraint name when adding a check constraint??
+    def quote_constraint_name(name)
+      Rails.version >= "6.1" ? name : connection.quote_column_name(name)
+    end
+
     it "does nothing extra when changing a column to nullable" do
       connection.change_column_null(:table, :column, true)
       expect(connection.executed_statements).to eq ['ALTER TABLE "table" ALTER COLUMN "column" DROP NOT NULL']
     end
 
-    it "pre-warms the cache" do
-      connection.change_column_null(:table, :column, false)
-      expect(connection.executed_statements).to eq(
-        ["BEGIN",
-         "SET LOCAL enable_indexscan=off",
-         "SET LOCAL enable_bitmapscan=off",
-         'SELECT COUNT(*) FROM "table" WHERE "column" IS NULL',
-         "ROLLBACK",
-         'ALTER TABLE "table" ALTER COLUMN "column" SET NOT NULL']
-      )
+    it "does nothing if we're in a transaction" do
+      connection.transaction do
+        connection.change_column_null(:table, :column, true)
+      end
+      expect(connection.executed_statements).to eq ["BEGIN",
+                                                    'ALTER TABLE "table" ALTER COLUMN "column" DROP NOT NULL',
+                                                    "COMMIT"]
     end
 
-    it "does nothing extra if a transaction is already active" do
-      connection.transaction do
-        connection.change_column_null(:table, :column, false)
-      end
-      expect(connection.executed_statements).to eq(
-        ["BEGIN",
-         'ALTER TABLE "table" ALTER COLUMN "column" SET NOT NULL',
-         "COMMIT"]
-      )
+    it "skips entirely if the column is already NOT NULL" do
+      expect(connection).to receive(:columns).with(:table).and_return([double(name: "column", null: false)])
+      connection.change_column_null(:table, :column, false)
+      expect(connection.executed_statements).to eq([])
+    end
+
+    it "adds and removes a check constraint" do
+      expect(connection).to receive(:columns).and_return([])
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "chk_rails_table_column_not_null"))
+      connection.change_column_null(:table, :column, false)
+
+      expect(connection.executed_statements).to eq [
+        "SELECT convalidated FROM pg_constraint INNER JOIN pg_namespace ON pg_namespace.oid=connamespace WHERE conname='chk_rails_table_column_not_null' AND nspname=ANY (current_schemas(false))\n", # rubocop:disable Layout/LineLength
+        %{ALTER TABLE "table" ADD CONSTRAINT #{quote_constraint_name('chk_rails_table_column_not_null')} CHECK ("column" IS NOT NULL) NOT VALID}, # rubocop:disable Layout/LineLength
+        'ALTER TABLE "table" VALIDATE CONSTRAINT "chk_rails_table_column_not_null"',
+        "BEGIN",
+        'ALTER TABLE "table" ALTER COLUMN "column" SET NOT NULL',
+        'ALTER TABLE "table" DROP CONSTRAINT "chk_rails_table_column_not_null"',
+        "COMMIT"
+      ]
+    end
+
+    it "verifies an existing check constraint" do
+      expect(connection).to receive(:columns).and_return([])
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "chk_rails_table_column_not_null"))
+      expect(connection).to receive(:select_value).and_return(false)
+      connection.change_column_null(:table, :column, false)
+
+      expect(connection.executed_statements).to eq [
+        # stubbed out <check constraint valid>
+        'ALTER TABLE "table" VALIDATE CONSTRAINT "chk_rails_table_column_not_null"',
+        "BEGIN",
+        'ALTER TABLE "table" ALTER COLUMN "column" SET NOT NULL',
+        'ALTER TABLE "table" DROP CONSTRAINT "chk_rails_table_column_not_null"',
+        "COMMIT"
+      ]
     end
   end
 

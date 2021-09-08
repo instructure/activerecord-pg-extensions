@@ -6,20 +6,36 @@ module ActiveRecord
     # to executing, in order to reduce the amount of time the actual DDL takes to
     # execute (and thus how long it needs the lock)
     module PessimisticMigrations
-      # does a query first to warm the db cache, to make the actual constraint adding fast
+      # adds a temporary check constraint to reduce locking when changing to NOT NULL, and we're not in a transaction
       def change_column_null(table, column, nullness, default = nil)
-        # no point in pre-warming the cache to avoid locking if we're already in a transaction
+        # no point in doing extra work to avoid locking if we're already in a transaction
         return super if nullness != false || open_transactions.positive?
+        return if columns(table).find { |c| c.name == column.to_s }&.null == false
+
+        temp_constraint_name = "chk_rails_#{table}_#{column}_not_null"
+        scope = quoted_scope(temp_constraint_name)
+        # check for temp constraint
+        valid = select_value(<<~SQL, "SCHEMA")
+          SELECT convalidated FROM pg_constraint INNER JOIN pg_namespace ON pg_namespace.oid=connamespace WHERE conname=#{scope[:name]} AND nspname=#{scope[:schema]}
+        SQL
+        if valid.nil?
+          add_check_constraint(table,
+                               "#{quote_column_name(column)} IS NOT NULL",
+                               name: temp_constraint_name,
+                               validate: false)
+        end
+        begin
+          validate_constraint(table, temp_constraint_name)
+        rescue ActiveRecord::StatementInvalid => e
+          raise ActiveRecord::NotNullViolation.new(sql: e.sql, binds: e.binds) if e.cause.is_a?(PG::CheckViolation)
+
+          raise
+        end
 
         transaction do
-          # make sure the query ignores indexes, because the actual ALTER TABLE will also ignore
-          # indexes
-          execute("SET LOCAL enable_indexscan=off")
-          execute("SET LOCAL enable_bitmapscan=off")
-          execute("SELECT COUNT(*) FROM #{quote_table_name(table)} WHERE #{quote_column_name(column)} IS NULL")
-          raise ActiveRecord::Rollback
+          super
+          remove_check_constraint(table, name: temp_constraint_name)
         end
-        super
       end
 
       # several improvements:
