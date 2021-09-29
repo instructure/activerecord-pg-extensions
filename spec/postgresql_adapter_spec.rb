@@ -270,12 +270,20 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
   end
 
   describe "#with_statement_timeout" do
+    around do |example|
+      # these specs were written before we supported deferring setting timeouts
+      # until the transaction materializes
+      connection.disable_lazy_transactions!
+      example.call
+      connection.enable_lazy_transactions!
+    end
+
     it "stops long-running queries" do
       expect do
         connection.with_statement_timeout(0.01) do
           connection.execute("SELECT pg_sleep(3)")
         end
-      end.to raise_error(ActiveRecord::QueryTimeout)
+      end.to raise_error(ActiveRecord::QueryCanceled)
     end
 
     it "re-raises other errors" do
@@ -283,16 +291,20 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         connection.with_statement_timeout(1) do
           connection.execute("bad sql")
         end
-      end.to raise_error(ActiveRecord::StatementInvalid)
+      end.to(raise_error { |e| expect(e.cause).to be_a(PG::SyntaxError) })
     end
 
     context "without executing" do
+      around do |example|
+        connection.dont_execute(&example)
+      end
+
       it "converts integer to ms" do
         connection.with_statement_timeout(30) { nil }
         expect(connection.executed_statements).to eq(
           [
             "BEGIN",
-            "SET LOCAL statement_timeout=30000",
+            "SET LOCAL statement_timeout TO '30s'",
             "COMMIT"
           ]
         )
@@ -303,7 +315,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.executed_statements).to eq(
           [
             "BEGIN",
-            "SET LOCAL statement_timeout=5500",
+            "SET LOCAL statement_timeout TO '5.5s'",
             "COMMIT"
           ]
         )
@@ -314,7 +326,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.executed_statements).to eq(
           [
             "BEGIN",
-            "SET LOCAL statement_timeout=5000",
+            "SET LOCAL statement_timeout TO '5s'",
             "COMMIT"
           ]
         )
@@ -325,11 +337,86 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.executed_statements).to eq(
           [
             "BEGIN",
-            "SET LOCAL statement_timeout=30000",
+            "SET LOCAL statement_timeout TO '30s'",
             "COMMIT"
           ]
         )
       end
+    end
+  end
+
+  describe "#statement_timeout=" do
+    around do |example|
+      connection.dont_execute(&example)
+    end
+
+    it "raises if a transaction isn't active" do
+      expect { connection.statement_timeout = 30 }.to raise_error(ArgumentError)
+    end
+
+    it "does nothing if the transaction never materializes" do
+      connection.transaction do
+        connection.statement_timeout = 30
+        expect(connection.statement_timeout).to eq 30
+      end
+      expect(connection.statement_timeout).to be_nil
+
+      expect(connection.executed_statements).to be_empty
+    end
+
+    it "sets the timeout if the transaction is materialized" do
+      connection.transaction do
+        connection.select_value("SELECT 1")
+        connection.statement_timeout = 30
+        expect(connection.statement_timeout).to eq 30
+      end
+      expect(connection.statement_timeout).to be_nil
+
+      expect(connection.executed_statements).to eq(
+        ["BEGIN",
+         "SELECT 1",
+         "SET LOCAL statement_timeout TO '30s'",
+         "COMMIT"]
+      )
+    end
+
+    it "sets the timeout if the transaction materializes" do
+      connection.transaction do
+        connection.statement_timeout = 30
+        connection.select_value("SELECT 1")
+        expect(connection.statement_timeout).to eq 30
+      end
+      expect(connection.statement_timeout).to be_nil
+
+      expect(connection.executed_statements).to eq(
+        ["BEGIN",
+         "SET LOCAL statement_timeout TO '30s'",
+         "SELECT 1",
+         "COMMIT"]
+      )
+    end
+
+    it "works with nested transactions" do
+      connection.transaction do
+        connection.statement_timeout = 30
+        connection.transaction(requires_new: true) do
+          connection.statement_timeout = 15
+          connection.select_value("SELECT 1")
+          expect(connection.statement_timeout).to eq 15
+        end
+        expect(connection.statement_timeout).to eq 30
+      end
+      expect(connection.statement_timeout).to be_nil
+
+      expect(connection.executed_statements).to eq(
+        ["BEGIN",
+         "SET LOCAL statement_timeout TO '30s'",
+         "SAVEPOINT active_record_1",
+         "SET LOCAL statement_timeout TO '15s'",
+         "SELECT 1",
+         "RELEASE SAVEPOINT active_record_1",
+         "COMMIT"]
+      )
     end
   end
 

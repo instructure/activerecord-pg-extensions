@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [0.4.0] - 2021-09-29
+
+- Deprecate with_statement_timeout
+- Add statement_timeout, lock_timeout, and idle_in_transaction_session_timeout
 ## [0.2.3] - 2021-06-23
 
 - Fix extension_available?
