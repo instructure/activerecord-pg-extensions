@@ -236,15 +236,41 @@ module ActiveRecord
         select_value("SELECT pg_is_in_recovery()")
       end
 
-      def with_statement_timeout(timeout = nil)
-        timeout = 30 if timeout.nil? || timeout == true
-        transaction do
-          execute("SET LOCAL statement_timeout=#{(timeout * 1000).to_i}")
-          yield
-        rescue ActiveRecord::StatementInvalid => e
-          raise ActiveRecord::QueryTimeout.new(sql: e.sql, binds: e.binds) if e.cause.is_a?(PG::QueryCanceled)
+      def set(configuration_parameter, value, local: false)
+        value = value.nil? ? "DEFAULT" : quote(value)
+        execute("SET#{' LOCAL' if local} #{configuration_parameter} TO #{value}")
+      end
 
-          raise
+      def reset(configuration_parameter)
+        execute("RESET #{configuration_parameter}")
+      end
+
+      TIMEOUTS = %i[lock_timeout statement_timeout idle_in_transaction_session_timeout].freeze
+
+      TIMEOUTS.each do |kind|
+        class_eval <<~RUBY, __FILE__, __LINE__ + 1
+          def #{kind}
+            current_transaction.#{kind}
+          end
+
+          def #{kind}=(timeout)
+            raise ArgumentError, "Timeouts can only be set inside of a transaction" unless current_transaction.open?
+
+            current_transaction.send(:#{kind}=, timeout)
+          end
+        RUBY
+      end
+
+      # @deprecated: manage the transaction yourself and set statement_timeout directly
+      #
+      # otherwise, if you're already in a transaction, or you nest with_statement_timeout,
+      # the value will unexpectedly "stick" even after the block returns
+      def with_statement_timeout(timeout)
+        timeout = 30 if timeout.nil? || timeout == true
+
+        transaction do
+          self.statement_timeout = timeout
+          yield
         end
       end
 
