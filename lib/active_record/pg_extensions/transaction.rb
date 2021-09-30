@@ -16,7 +16,7 @@ module ActiveRecord
 
             @#{kind} = timeout
             return unless materialized?
-            connection.set(#{kind.inspect}, "\#{timeout}s", local: true)
+            connection.set(#{kind.inspect}, "\#{timeout * 1000}ms", local: true)
           end
         RUBY
       end
