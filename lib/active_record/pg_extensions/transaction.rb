@@ -16,7 +16,7 @@ module ActiveRecord
 
             @#{kind} = timeout
             return unless materialized?
-            connection.set(#{kind.inspect}, "\#{timeout}s", local: true)
+            connection.set(#{kind.inspect}, "\#{(timeout * 1000).to_i}ms", local: true)
           end
         RUBY
       end
@@ -25,7 +25,7 @@ module ActiveRecord
         PostgreSQLAdapter::TIMEOUTS.each do |kind|
           next if (timeout = send(kind, local: true)).nil?
 
-          connection.set(kind, "#{timeout}s", local: true)
+          connection.set(kind, "#{(timeout * 1000).to_i}ms", local: true)
         end
         super
       end
