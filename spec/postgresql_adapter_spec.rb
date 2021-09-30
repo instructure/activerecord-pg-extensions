@@ -304,7 +304,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.executed_statements).to eq(
           [
             "BEGIN",
-            "SET LOCAL statement_timeout TO '30s'",
+            "SET LOCAL statement_timeout TO '30000ms'",
             "COMMIT"
           ]
         )
@@ -315,7 +315,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.executed_statements).to eq(
           [
             "BEGIN",
-            "SET LOCAL statement_timeout TO '5.5s'",
+            "SET LOCAL statement_timeout TO '5500ms'",
             "COMMIT"
           ]
         )
@@ -326,7 +326,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.executed_statements).to eq(
           [
             "BEGIN",
-            "SET LOCAL statement_timeout TO '5s'",
+            "SET LOCAL statement_timeout TO '5000ms'",
             "COMMIT"
           ]
         )
@@ -337,7 +337,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
         expect(connection.executed_statements).to eq(
           [
             "BEGIN",
-            "SET LOCAL statement_timeout TO '30s'",
+            "SET LOCAL statement_timeout TO '30000ms'",
             "COMMIT"
           ]
         )
@@ -375,7 +375,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       expect(connection.executed_statements).to eq(
         ["BEGIN",
          "SELECT 1",
-         "SET LOCAL statement_timeout TO '30s'",
+         "SET LOCAL statement_timeout TO '30000ms'",
          "COMMIT"]
       )
     end
@@ -390,7 +390,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
 
       expect(connection.executed_statements).to eq(
         ["BEGIN",
-         "SET LOCAL statement_timeout TO '30s'",
+         "SET LOCAL statement_timeout TO '30000ms'",
          "SELECT 1",
          "COMMIT"]
       )
@@ -410,9 +410,9 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
 
       expect(connection.executed_statements).to eq(
         ["BEGIN",
-         "SET LOCAL statement_timeout TO '30s'",
+         "SET LOCAL statement_timeout TO '30000ms'",
          "SAVEPOINT active_record_1",
-         "SET LOCAL statement_timeout TO '15s'",
+         "SET LOCAL statement_timeout TO '15000ms'",
          "SELECT 1",
          "RELEASE SAVEPOINT active_record_1",
          "COMMIT"]
