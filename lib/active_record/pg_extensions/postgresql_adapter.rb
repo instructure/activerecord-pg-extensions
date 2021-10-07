@@ -265,7 +265,7 @@ module ActiveRecord
       #
       # otherwise, if you're already in a transaction, or you nest with_statement_timeout,
       # the value will unexpectedly "stick" even after the block returns
-      def with_statement_timeout(timeout)
+      def with_statement_timeout(timeout = nil)
         timeout = 30 if timeout.nil? || timeout == true
 
         transaction do
