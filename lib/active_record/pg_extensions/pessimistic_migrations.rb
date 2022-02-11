@@ -12,7 +12,8 @@ module ActiveRecord
         return super if nullness != false || open_transactions.positive?
         return if columns(table).find { |c| c.name == column.to_s }&.null == false
 
-        temp_constraint_name = "chk_rails_#{table}_#{column}_not_null"
+        # PG identifiers max out at 63 characters
+        temp_constraint_name = "chk_rails_#{table}_#{column}_not_null"[0...63]
         scope = quoted_scope(temp_constraint_name)
         # check for temp constraint
         valid = select_value(<<~SQL, "SCHEMA")
