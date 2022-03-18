@@ -13,8 +13,11 @@ jobs:
 
     strategy:
       matrix:
-        ruby-version: [2.7, 2.6]
-        gemfile: ['gemfiles/rails_6.0.gemfile', 'gemfiles/rails_6.1.gemfile']
+        ruby-version: [3.0, 2.7, 2.6]
+        gemfile: ['gemfiles/rails_6.0.gemfile', 'gemfiles/rails_6.1.gemfile', 'gemfiles/rails_7.0.gemfile']
+        exclude:
+        - gemfile: gemfiles/rails_7.0.gemfile
+          ruby-version: 2.6
 
     services:
       postgres:
