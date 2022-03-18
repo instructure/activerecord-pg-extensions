@@ -15,13 +15,14 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = Gem::Requirement.new(">= 2.6.0")
 
   spec.metadata["changelog_uri"] = "https://github.com/instructure/activerecord-pg-extensions/blob/main/CHANGELOG.md"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir["lib/**/*"] + ["LICENSE.txt", "README.md", "CHANGELOG.md"]
   spec.test_files = Dir["spec/**/*"] + ["config/database.yml"]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "activerecord", ">= 6.0", "< 6.2"
-  spec.add_dependency "railties", ">= 6.0", "< 6.2"
+  spec.add_dependency "activerecord", ">= 6.0", "< 7.1"
+  spec.add_dependency "railties", ">= 6.0", "< 7.1"
 
   spec.add_development_dependency "appraisal", "~> 2.4"
   spec.add_development_dependency "byebug", "~> 11.1"

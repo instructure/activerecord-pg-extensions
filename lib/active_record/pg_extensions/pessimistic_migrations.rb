@@ -64,7 +64,7 @@ module ActiveRecord
       end
 
       # will automatically remove a NOT VALID index before trying to add
-      def add_index(table_name, column_name, options = {})
+      def add_index(table_name, column_name, **options)
         # catch a concurrent index add that fails because it already exists, and is invalid
         if options[:algorithm] == :concurrently || options[:if_not_exists]
           column_names = index_column_names(column_name)

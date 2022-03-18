@@ -1,6 +1,9 @@
 AllCops:
   TargetRubyVersion: 2.6
   NewCops: enable
+  Exclude:
+    - 'gemfiles/*'
+    - 'vendor/bundle/**/*'
 
 Style/StringLiterals:
   Enabled: true
