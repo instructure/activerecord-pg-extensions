@@ -3,6 +3,7 @@ AllCops:
   NewCops: enable
   Exclude:
     - 'gemfiles/*'
+    - 'vendor/bundle/**/*'
 
 Style/StringLiterals:
   Enabled: true

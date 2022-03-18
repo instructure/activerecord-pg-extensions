@@ -53,3 +53,17 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: postgres
           BUNDLE_GEMFILE: ${{ matrix.gemfile }}
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+          bundler-cache: true
+      - name: Install dependencies
+        run: bundle install
+      - name: Run rubocop
+        run: bundle exec rake rubocop
