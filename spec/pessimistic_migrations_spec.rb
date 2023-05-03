@@ -8,7 +8,7 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
   describe "#change_column_null" do
     # Rails 6.1 doesn't quote the constraint name when adding a check constraint??
     def quote_constraint_name(name)
-      Rails.version >= "6.1" ? name : connection.quote_column_name(name)
+      (Rails.version >= "6.1") ? name : connection.quote_column_name(name)
     end
 
     it "does nothing extra when changing a column to nullable" do
@@ -38,7 +38,7 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
 
       expect(connection.executed_statements).to eq [
         "SELECT convalidated FROM pg_constraint INNER JOIN pg_namespace ON pg_namespace.oid=connamespace WHERE conname='chk_rails_table_column_not_null' AND nspname=ANY (current_schemas(false))\n", # rubocop:disable Layout/LineLength
-        %{ALTER TABLE "table" ADD CONSTRAINT #{quote_constraint_name('chk_rails_table_column_not_null')} CHECK ("column" IS NOT NULL) NOT VALID}, # rubocop:disable Layout/LineLength
+        %{ALTER TABLE "table" ADD CONSTRAINT #{quote_constraint_name("chk_rails_table_column_not_null")} CHECK ("column" IS NOT NULL) NOT VALID}, # rubocop:disable Layout/LineLength
         'ALTER TABLE "table" VALIDATE CONSTRAINT "chk_rails_table_column_not_null"',
         "BEGIN",
         'ALTER TABLE "table" ALTER COLUMN "column" SET NOT NULL',

@@ -1,23 +1,30 @@
+require:
+  - rubocop-rake
+
+inherit_gem:
+  rubocop-inst:
+  - rubocop.yml
+  - rubocop-rspec.yml
+
+inherit_mode:
+  merge:
+    - Exclude
+
 AllCops:
-  TargetRubyVersion: 2.6
-  NewCops: enable
+  TargetRubyVersion: 2.7
   Exclude:
     - 'gemfiles/*'
-    - 'vendor/bundle/**/*'
-
-Style/StringLiterals:
-  Enabled: true
-  EnforcedStyle: double_quotes
 
 Style/DocumentDynamicEvalDefinition:
   Enabled: false
-
-Layout/LineLength:
-  Max: 120
 
 Naming/FileName:
   Exclude:
     - lib/activerecord-pg-extensions.rb
 
-Metrics:
+RSpec/ContextWording:
+  Enabled: false
+RSpec/FilePath:
+  Enabled: false
+RSpec/VerifiedDoubles:
   Enabled: false

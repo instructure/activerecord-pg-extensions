@@ -12,13 +12,12 @@ Gem::Specification.new do |spec|
   spec.description   = spec.summary
   spec.homepage      = "https://github.com/instructure/activerecord-pg-extensions"
   spec.license       = "MIT"
-  spec.required_ruby_version = Gem::Requirement.new(">= 2.6.0")
+  spec.required_ruby_version = ">= 2.7"
 
   spec.metadata["changelog_uri"] = "https://github.com/instructure/activerecord-pg-extensions/blob/main/CHANGELOG.md"
   spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.files = Dir["lib/**/*"] + ["LICENSE.txt", "README.md", "CHANGELOG.md"]
-  spec.test_files = Dir["spec/**/*"] + ["config/database.yml"]
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activerecord", ">= 6.0", "< 7.1"
@@ -29,7 +28,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "pg", "~> 1.2"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.0"
-  spec.add_development_dependency "rubocop", "~> 1.7"
+  spec.add_development_dependency "rubocop-inst", "~> 1"
   spec.add_development_dependency "rubocop-rake", "~> 0.5"
   spec.add_development_dependency "rubocop-rspec", "~> 2.3"
 end
