@@ -85,8 +85,9 @@ module ActiveRecord
             LIMIT 1
           SQL
           if valid == false && options[:algorithm] == :concurrently
-            remove_index(table_name, name: index_name,
-                                     algorithm: :concurrently)
+            remove_index(table_name,
+                         name: index_name,
+                         algorithm: :concurrently)
           end
           return if options[:if_not_exists] && valid == true
         end

@@ -40,7 +40,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       connection.defer_constraints do
         block_called = true
       end
-      expect(block_called).to eq true
+      expect(block_called).to be true
       expect(connection.executed_statements).to eq ["SET CONSTRAINTS ALL DEFERRED", "SET CONSTRAINTS ALL IMMEDIATE"]
     end
   end
@@ -258,7 +258,7 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
 
     describe "#in_recovery?" do
       it "works" do
-        expect(connection.in_recovery?).to eq false
+        expect(connection.in_recovery?).to be false
       end
     end
 

@@ -29,7 +29,7 @@ module StatementCaptureConnection
 
   %w[execute exec_no_cache exec_cache].each do |method|
     class_eval <<-RUBY, __FILE__, __LINE__ + 1
-      def #{method}(statement, *#{Rails.version >= '7.0' ? ', **kwargs' : ''})
+      def #{method}(statement, *#{(Rails.version >= "7.0") ? ", **kwargs" : ""})
         materialize_transactions # this still needs to get called, even if we skip actually executing
         executed_statements << statement
         return empty_pg_result if @dont_execute

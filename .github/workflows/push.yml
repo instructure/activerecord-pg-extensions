@@ -14,11 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: [3.0, 2.7, 2.6]
+        ruby-version: [3.0, 2.7]
         gemfile: ['gemfiles/rails_6.0.gemfile', 'gemfiles/rails_6.1.gemfile', 'gemfiles/rails_7.0.gemfile']
-        exclude:
-        - gemfile: gemfiles/rails_7.0.gemfile
-          ruby-version: 2.6
 
     services:
       postgres:
@@ -34,7 +31,7 @@ jobs:
           - 5432:5432
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -42,12 +39,8 @@ jobs:
           bundler-cache: true
         env:
           BUNDLE_GEMFILE: ${{ matrix.gemfile }}
-      - name: Install dependencies
-        run: bundle install
-        env:
-          BUNDLE_GEMFILE: ${{ matrix.gemfile }}
       - name: Run tests
-        run: bundle exec rake
+        run: bin/rspec
         env:
           PGHOST: localhost
           PGUSER: postgres
@@ -57,13 +50,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: 2.7
           bundler-cache: true
-      - name: Install dependencies
-        run: bundle install
-      - name: Run rubocop
-        run: bundle exec rake rubocop
+      - name: Run RuboCop
+        run: bin/rubocop
+        timeout-minutes: 2

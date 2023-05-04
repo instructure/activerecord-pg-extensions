@@ -160,7 +160,7 @@ module ActiveRecord
             raise ArgumentError, "columns may only be specified if a analyze is specified" unless analyze
 
             table.map do |table_name, columns|
-              "#{quote_table_name(table_name)} (#{Array.wrap(columns).map { |c| quote_column_name(c) }.join(', ')})"
+              "#{quote_table_name(table_name)} (#{Array.wrap(columns).map { |c| quote_column_name(c) }.join(", ")})"
             end.join(", ")
           else
             quote_table_name(table)
@@ -182,35 +182,35 @@ module ActiveRecord
       def current_wal_lsn
         return nil unless wal?
 
-        select_value("SELECT #{pre_pg10_wal_function_name('pg_current_wal_lsn')}()")
+        select_value("SELECT #{pre_pg10_wal_function_name("pg_current_wal_lsn")}()")
       end
 
       # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.5.5.2.2.2.1.1.1
       def current_wal_flush_lsn
         return nil unless wal?
 
-        select_value("SELECT #{pre_pg10_wal_function_name('pg_current_wal_flush_lsn')}()")
+        select_value("SELECT #{pre_pg10_wal_function_name("pg_current_wal_flush_lsn")}()")
       end
 
       # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.5.5.2.2.3.1.1.1
       def current_wal_insert_lsn
         return nil unless wal?
 
-        select_value("SELECT #{pre_pg10_wal_function_name('pg_current_wal_insert_lsn')}()")
+        select_value("SELECT #{pre_pg10_wal_function_name("pg_current_wal_insert_lsn")}()")
       end
 
       # https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.6.3.2.2.2.1.1.1
       def last_wal_receive_lsn
         return nil unless wal?
 
-        select_value("SELECT #{pre_pg10_wal_function_name('pg_last_wal_receive_lsn')}()")
+        select_value("SELECT #{pre_pg10_wal_function_name("pg_last_wal_receive_lsn")}()")
       end
 
       # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.6.3.2.2.3.1.1.1
       def last_wal_replay_lsn
         return nil unless wal?
 
-        select_value("SELECT #{pre_pg10_wal_function_name('pg_last_wal_replay_lsn')}()")
+        select_value("SELECT #{pre_pg10_wal_function_name("pg_last_wal_replay_lsn")}()")
       end
 
       # see https://www.postgresql.org/docs/current/functions-admin.html#id-1.5.8.33.5.5.2.2.4.1.1.1
@@ -229,7 +229,7 @@ module ActiveRecord
           end
         end
 
-        select_value("SELECT #{pre_pg10_wal_function_name('pg_wal_lsn_diff')}(#{lsns[0]}, #{lsns[1]})")
+        select_value("SELECT #{pre_pg10_wal_function_name("pg_wal_lsn_diff")}(#{lsns[0]}, #{lsns[1]})")
       end
 
       def in_recovery?
@@ -238,7 +238,7 @@ module ActiveRecord
 
       def set(configuration_parameter, value, local: false)
         value = value.nil? ? "DEFAULT" : quote(value)
-        execute("SET#{' LOCAL' if local} #{configuration_parameter} TO #{value}")
+        execute("SET#{" LOCAL" if local} #{configuration_parameter} TO #{value}")
       end
 
       def reset(configuration_parameter)
@@ -319,8 +319,7 @@ module ActiveRecord
           SQL
           coders = execute_and_clear(query, "SCHEMA", []) do |result|
             result
-              .map { |row| construct_coder(row, coders_by_name[row["typname"]]) }
-              .compact
+              .filter_map { |row| construct_coder(row, coders_by_name[row["typname"]]) }
           end
 
           map = PG::TypeMapByOid.new
