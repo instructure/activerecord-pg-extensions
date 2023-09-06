@@ -452,6 +452,40 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
           ['ALTER TABLE "table" DROP CONSTRAINT "my_constraint"']
         )
       end
+
+      it "handles if_exists" do
+        connection.remove_check_constraint(:table, name: :my_constraint, if_exists: true)
+        expect(connection.executed_statements).to eq(
+          ['ALTER TABLE "table" DROP CONSTRAINT IF EXISTS "my_constraint"']
+        )
+      end
+
+      it "handles restrict" do
+        connection.remove_check_constraint(:table, name: :my_constraint, restrict: true)
+        expect(connection.executed_statements).to eq(
+          ['ALTER TABLE "table" DROP CONSTRAINT "my_constraint" RESTRICT']
+        )
+      end
+
+      it "handles cascade" do
+        connection.remove_check_constraint(:table, name: :my_constraint, cascade: true)
+        expect(connection.executed_statements).to eq(
+          ['ALTER TABLE "table" DROP CONSTRAINT "my_constraint" CASCADE']
+        )
+      end
+
+      it "handles if_exists and cascade" do
+        connection.remove_check_constraint(:table, name: :my_constraint, if_exists: true, cascade: true)
+        expect(connection.executed_statements).to eq(
+          ['ALTER TABLE "table" DROP CONSTRAINT IF EXISTS "my_constraint" CASCADE']
+        )
+      end
+
+      it "disallows restrict and cascade" do
+        expect do
+          connection.remove_check_constraint(:table, name: :my_constraint, restrict: true, cascade: true)
+        end.to raise_error(ArgumentError)
+      end
     end
   end
 end

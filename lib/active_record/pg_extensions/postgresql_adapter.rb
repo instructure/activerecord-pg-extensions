@@ -281,8 +281,17 @@ module ActiveRecord
           execute(sql)
         end
 
-        def remove_check_constraint(table_name, name:)
-          execute("ALTER TABLE #{quote_table_name(table_name)} DROP CONSTRAINT #{quote_column_name(name)}")
+        def remove_check_constraint(table_name, name:, if_exists: false, restrict: false, cascade: false)
+          raise ArgumentError, "Cannot specify both RESTRICT and CASCADE" if restrict && cascade
+
+          if_exists = if_exists ? " IF EXISTS" : nil
+          modifier = if cascade
+                       " CASCADE"
+                     elsif restrict
+                       " RESTRICT"
+                     end
+          execute("ALTER TABLE #{quote_table_name(table_name)} " \
+                  "DROP CONSTRAINT#{if_exists} #{quote_column_name(name)}#{modifier}")
         end
       end
 
