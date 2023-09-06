@@ -96,8 +96,8 @@ module ActiveRecord
       end
 
       if ActiveRecord.version < Gem::Version.new("7.1")
-        def remove_check_constraint(table_name, expression = nil, **options)
-          return if options[:if_exists] && !check_constraint_for(table_name, expression, **options)
+        def remove_check_constraint(table_name, expression = nil, if_exists: false, **options)
+          return if if_exists && !check_constraint_for(table_name, expression, **options)
 
           super
         end
