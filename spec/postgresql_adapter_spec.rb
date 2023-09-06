@@ -419,39 +419,4 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       )
     end
   end
-
-  unless Rails.version >= "6.1"
-    describe "#add_check_constraint" do
-      around do |example|
-        connection.dont_execute(&example)
-      end
-
-      it "works" do
-        connection.add_check_constraint(:table, "column IS NOT NULL", name: :my_constraint)
-        expect(connection.executed_statements).to eq(
-          ['ALTER TABLE "table" ADD CONSTRAINT "my_constraint" CHECK (column IS NOT NULL)']
-        )
-      end
-
-      it "defers validation" do
-        connection.add_check_constraint(:table, "column IS NOT NULL", name: :my_constraint, validate: false)
-        expect(connection.executed_statements).to eq(
-          ['ALTER TABLE "table" ADD CONSTRAINT "my_constraint" CHECK (column IS NOT NULL) NOT VALID']
-        )
-      end
-    end
-
-    describe "#remove_check_constraint" do
-      around do |example|
-        connection.dont_execute(&example)
-      end
-
-      it "works" do
-        connection.remove_check_constraint(:table, name: :my_constraint)
-        expect(connection.executed_statements).to eq(
-          ['ALTER TABLE "table" DROP CONSTRAINT "my_constraint"']
-        )
-      end
-    end
-  end
 end

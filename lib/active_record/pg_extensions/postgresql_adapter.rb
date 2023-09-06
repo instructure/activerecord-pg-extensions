@@ -9,8 +9,8 @@ module ActiveRecord
       # set constraint check timing for the current transaction
       # see https://www.postgresql.org/docs/current/sql-set-constraints.html
       def set_constraints(deferred, *constraints)
-        raise ArgumentError, "deferred must be :deferred or :immediate" unless %w[deferred
-                                                                                  immediate].include?(deferred.to_s)
+        raise ArgumentError, "deferred must be :deferred or :immediate" unless %i[deferred
+                                                                                  immediate].include?(deferred)
 
         constraints = constraints.map { |c| quote_table_name(c) }.join(", ")
         constraints = "ALL" if constraints.empty?
@@ -274,63 +274,7 @@ module ActiveRecord
         end
       end
 
-      unless ::Rails.version >= "6.1"
-        def add_check_constraint(table_name, expression, name:, validate: true)
-          sql = +"ALTER TABLE #{quote_table_name(table_name)} ADD CONSTRAINT #{quote_column_name(name)} CHECK (#{expression})" # rubocop:disable Layout/LineLength
-          sql << " NOT VALID" unless validate
-          execute(sql)
-        end
-
-        def remove_check_constraint(table_name, name:)
-          execute("ALTER TABLE #{quote_table_name(table_name)} DROP CONSTRAINT #{quote_column_name(name)}")
-        end
-      end
-
       private
-
-      if ::Rails.version < "6.1"
-        # significant change: add PG::TextDecoder::Numeric
-        def add_pg_decoders
-          @default_timezone = nil
-          @timestamp_decoder = nil
-
-          coders_by_name = {
-            "int2" => PG::TextDecoder::Integer,
-            "int4" => PG::TextDecoder::Integer,
-            "int8" => PG::TextDecoder::Integer,
-            "oid" => PG::TextDecoder::Integer,
-            "float4" => PG::TextDecoder::Float,
-            "float8" => PG::TextDecoder::Float,
-            "bool" => PG::TextDecoder::Boolean,
-            "numeric" => PG::TextDecoder::Numeric
-          }
-
-          if defined?(PG::TextDecoder::TimestampUtc)
-            # Use native PG encoders available since pg-1.1
-            coders_by_name["timestamp"] = PG::TextDecoder::TimestampUtc
-            coders_by_name["timestamptz"] = PG::TextDecoder::TimestampWithTimeZone
-          end
-
-          known_coder_types = coders_by_name.keys.map { |n| quote(n) }
-          query = format(<<~SQL, *known_coder_types.join(", "))
-            SELECT t.oid, t.typname
-            FROM pg_type as t
-            WHERE t.typname IN (%s)
-          SQL
-          coders = execute_and_clear(query, "SCHEMA", []) do |result|
-            result
-              .filter_map { |row| construct_coder(row, coders_by_name[row["typname"]]) }
-          end
-
-          map = PG::TypeMapByOid.new
-          coders.each { |coder| map.add_coder(coder) }
-          @connection.type_map_for_results = map
-
-          # extract timestamp decoder for use in update_typemap_for_default_timezone
-          @timestamp_decoder = coders.find { |coder| coder.name == "timestamp" }
-          update_typemap_for_default_timezone
-        end
-      end
 
       def initialize_type_map(map = type_map)
         map.register_type "pg_lsn", ActiveRecord::ConnectionAdapters::PostgreSQL::OID::SpecializedString.new(:pg_lsn)
