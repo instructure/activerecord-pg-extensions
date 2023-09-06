@@ -27,10 +27,8 @@ module ActiveRecord
         end
         begin
           validate_constraint(table, temp_constraint_name)
-        rescue ActiveRecord::StatementInvalid => e
-          raise ActiveRecord::NotNullViolation.new(sql: e.sql, binds: e.binds) if e.cause.is_a?(PG::CheckViolation)
-
-          raise
+        rescue PG::CheckViolation => e
+          raise ActiveRecord::NotNullViolation.new(sql: e.sql, binds: e.binds)
         end
 
         transaction do
@@ -66,7 +64,7 @@ module ActiveRecord
       # will automatically remove a NOT VALID index before trying to add
       def add_index(table_name, column_name, **options)
         # catch a concurrent index add that fails because it already exists, and is invalid
-        if options[:algorithm] == :concurrently || options[:if_not_exists]
+        if options[:algorithm] == :concurrently && options[:if_not_exists]
           column_names = index_column_names(column_name)
           index_name = options[:name].to_s if options.key?(:name)
           index_name ||= index_name(table_name, column_names)
@@ -84,16 +82,25 @@ module ActiveRecord
               AND i.relnamespace IN (SELECT oid FROM pg_namespace WHERE nspname = #{index[:schema]} )
             LIMIT 1
           SQL
-          if valid == false && options[:algorithm] == :concurrently
-            remove_index(table_name,
-                         name: index_name,
-                         algorithm: :concurrently)
-          end
-          return if options[:if_not_exists] && valid == true
+          return if valid == true
+
+          remove_index(table_name, name: index_name, algorithm: :concurrently) if valid == false
         end
-        # Rails.version: can stop doing this in Rails 6.2, when it's natively supported
-        options.delete(:if_not_exists)
         super
+      end
+
+      def add_check_constraint(table_name, expression, if_not_exists: false, **options)
+        return if if_not_exists && check_constraint_for(table_name, expression, **options)
+
+        super
+      end
+
+      if ActiveRecord.version < Gem::Version.new("7.1")
+        def remove_check_constraint(table_name, expression = nil, **options)
+          return if options[:if_exists] && !check_constraint_for(table_name, expression, **options)
+
+          super
+        end
       end
     end
   end

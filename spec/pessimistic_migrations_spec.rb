@@ -6,11 +6,6 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
   end
 
   describe "#change_column_null" do
-    # Rails 6.1 doesn't quote the constraint name when adding a check constraint??
-    def quote_constraint_name(name)
-      (Rails.version >= "6.1") ? name : connection.quote_column_name(name)
-    end
-
     it "does nothing extra when changing a column to nullable" do
       connection.change_column_null(:table, :column, true)
       expect(connection.executed_statements).to eq ['ALTER TABLE "table" ALTER COLUMN "column" DROP NOT NULL']
@@ -38,7 +33,7 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
 
       expect(connection.executed_statements).to eq [
         "SELECT convalidated FROM pg_constraint INNER JOIN pg_namespace ON pg_namespace.oid=connamespace WHERE conname='chk_rails_table_column_not_null' AND nspname=ANY (current_schemas(false))\n", # rubocop:disable Layout/LineLength
-        %{ALTER TABLE "table" ADD CONSTRAINT #{quote_constraint_name("chk_rails_table_column_not_null")} CHECK ("column" IS NOT NULL) NOT VALID}, # rubocop:disable Layout/LineLength
+        %{ALTER TABLE "table" ADD CONSTRAINT chk_rails_table_column_not_null CHECK ("column" IS NOT NULL) NOT VALID},
         'ALTER TABLE "table" VALIDATE CONSTRAINT "chk_rails_table_column_not_null"',
         "BEGIN",
         'ALTER TABLE "table" ALTER COLUMN "column" SET NOT NULL',
@@ -120,16 +115,37 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       expect(connection).to receive(:select_value).with(/indisvalid/, "SCHEMA").and_return(false)
       expect(connection).to receive(:remove_index).with(:users, name: "index_users_on_name", algorithm: :concurrently)
 
-      connection.add_index :users, :name, algorithm: :concurrently
-      expect(connection.executed_statements).to match(
-        [match(/\ACREATE +INDEX CONCURRENTLY "index_users_on_name" ON "users" +\("name"\)\z/)]
-      )
+      connection.add_index :users, :name, algorithm: :concurrently, if_not_exists: true
+      expect(connection.executed_statements).to eq [
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS "index_users_on_name" ON "users" ("name")'
+      ]
     end
 
     it "does nothing if the index already exists" do
-      expect(connection).to receive(:select_value).with(/indisvalid/, "SCHEMA").and_return(true)
+      expect(connection).not_to receive(:select_value)
 
       connection.add_index :users, :name, if_not_exists: true
+      expect(connection.executed_statements).to eq [
+        'CREATE INDEX IF NOT EXISTS "index_users_on_name" ON "users" ("name")'
+      ]
+    end
+  end
+
+  describe "#add_check_constraint" do
+    it "supports if_not_exists" do
+      expect(connection).to receive(:check_constraint_for).and_return(double(name: "chk_rails_users_name_not_null"))
+      connection.add_check_constraint :users,
+                                      "name IS NOT NULL",
+                                      name: "chk_rails_users_name_not_null",
+                                      if_not_exists: true
+      expect(connection.executed_statements).to eq []
+    end
+  end
+
+  describe "#remove_check_constraint" do
+    it "supports if_exists" do
+      expect(connection).to receive(:check_constraint_for).and_return(nil)
+      connection.remove_check_constraint :users, name: "chk_rails_users_name_not_null", if_exists: true
       expect(connection.executed_statements).to eq []
     end
   end
