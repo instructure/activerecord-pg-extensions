@@ -14,6 +14,11 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       expect { connection.set_constraints("garbage") }.to raise_error(ArgumentError)
     end
 
+    it "allows string arguments" do
+      expect { connection.set_constraints("deferred") }.not_to raise_error(ArgumentError)
+      expect { connection.set_constraints("immediate") }.not_to raise_error(ArgumentError)
+    end
+
     it "defaults to all" do
       connection.set_constraints(:deferred)
       expect(connection.executed_statements).to eq ["SET CONSTRAINTS ALL DEFERRED"]
