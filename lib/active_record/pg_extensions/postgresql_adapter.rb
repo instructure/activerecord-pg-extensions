@@ -10,7 +10,7 @@ module ActiveRecord
       # see https://www.postgresql.org/docs/current/sql-set-constraints.html
       def set_constraints(deferred, *constraints)
         raise ArgumentError, "deferred must be :deferred or :immediate" unless %i[deferred
-                                                                                  immediate].include?(deferred)
+                                                                                  immediate].include?(deferred.to_sym)
 
         constraints = constraints.map { |c| quote_table_name(c) }.join(", ")
         constraints = "ALL" if constraints.empty?
