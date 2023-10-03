@@ -15,8 +15,8 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
     end
 
     it "allows string arguments" do
-      expect { connection.set_constraints("deferred") }.not_to raise_error(ArgumentError)
-      expect { connection.set_constraints("immediate") }.not_to raise_error(ArgumentError)
+      connection.set_constraints("deferred")
+      connection.set_constraints("immediate")
     end
 
     it "defaults to all" do
@@ -200,6 +200,13 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
   end
 
   describe "#vacuum" do
+    around do |block|
+      old_proc = connection.raw_connection.set_notice_processor { nil }
+      block.call
+    ensure
+      connection.raw_connection.set_notice_processor(&old_proc)
+    end
+
     it "does a straight vacuum of everything" do
       connection.vacuum
       expect(connection.executed_statements).to eq ["VACUUM"]

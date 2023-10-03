@@ -16,14 +16,13 @@ See individual classes for available methods.
 
 ## Development
 
-You will need Postgres locally to test. As long as `psql` can connect with no arguments, you're fine. Otherwise use environment variables
-as described at https://www.postgresql.org/docs/current/libpq-envars.html to configure it. The database will be created automatically.
+Development requires Docker. After checking out the repo, run `docker compose build` to install dependencies.
 
-`rake` will run both tests and Rubocop.
+`docker compose run --rm app rake` will run both tests and Rubocop.
 
-After checking out the repo, run `bundle install` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+If using Visual Studio Code, simply click "Reopen in Container" when it pops up.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+To release a new version, update the version number in `version.rb`, and then run `rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
 ## Contributing
 

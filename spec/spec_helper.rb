@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "activerecord-pg-extensions"
-require "byebug"
+require "debug"
 require "active_record/railtie"
 require "active_record/pg_extensions/all"
 
@@ -10,6 +10,7 @@ Rails.env = "test"
 
 class Application < Rails::Application
   config.eager_load = false
+  config.active_record.legacy_connection_handling = false
 end
 Application.initialize!
 
