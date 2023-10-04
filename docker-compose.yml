@@ -1,0 +1,26 @@
+version: '3'
+
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app:cached
+      - gem-home:/usr/local/bundle
+    links:
+      - postgres
+    command: sleep infinity
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+volumes:
+  postgres-data:
+  gem-home:

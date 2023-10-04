@@ -1,0 +1,17 @@
+{
+	"name": "activerecord-pg-extensions",
+	"dockerComposeFile": [],
+	"service": "app",
+	"workspaceFolder": "/app",
+	"postCreateCommand": "bundle install && ~/.local/bin/pre-commit install",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"GitHub.vscode-github-actions",
+				"GitHub.vscode-pull-request-github",
+				"Shopify.ruby-lsp",
+				"ms-azuretools.vscode-docker"
+			]
+		}
+	}
+}
