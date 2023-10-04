@@ -1,9 +1,9 @@
 PATH
   remote: .
   specs:
-    activerecord-pg-extensions (0.5.3)
-      activerecord (~> 7.0.0)
-      railties (~> 7.0.0)
+    activerecord-pg-extensions (0.5.4)
+      activerecord (>= 7.0, < 7.2)
+      railties (>= 7.0, < 7.2)
 
 GEM
   remote: https://rubygems.org/

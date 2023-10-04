@@ -15,6 +15,9 @@ AllCops:
   Exclude:
     - 'gemfiles/*'
 
+Bundler/DuplicatedGem:
+  Enabled: false
+
 Style/DocumentDynamicEvalDefinition:
   Enabled: false
 

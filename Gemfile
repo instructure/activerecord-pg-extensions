@@ -11,4 +11,10 @@ gemspec
 
 lockfile "rails-7.0", default: true do
   gem "activerecord", "~> 7.0.0"
+  gem "railties", "~> 7.0.0"
+end
+
+lockfile "rails-7.1" do
+  gem "activerecord", "~> 7.1.0.rc2"
+  gem "railties", "~> 7.1.0.rc2"
 end
