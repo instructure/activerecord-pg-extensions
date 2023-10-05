@@ -10,11 +10,10 @@ Rails.env = "test"
 
 class Application < Rails::Application
   config.eager_load = false
-  config.active_record.legacy_connection_handling = false
 end
 Application.initialize!
 
-ActiveRecord::Tasks::DatabaseTasks.create_all
+ActiveRecord::Tasks::DatabaseTasks.create_current
 
 module StatementCaptureConnection
   def dont_execute
@@ -28,7 +27,12 @@ module StatementCaptureConnection
     @executed_statements ||= []
   end
 
-  %w[execute exec_no_cache exec_cache].each do |method|
+  methods = if Rails.version < "7.1"
+              %w[execute exec_no_cache exec_cache]
+            else
+              %w[internal_execute exec_no_cache exec_cache]
+            end
+  methods.each do |method|
     class_eval <<-RUBY, __FILE__, __LINE__ + 1
       def #{method}(statement, *, **)
         materialize_transactions # this still needs to get called, even if we skip actually executing
@@ -43,7 +47,8 @@ module StatementCaptureConnection
   # we can't actually generate a dummy one of these, so we just query the db with something
   # that won't return anything
   def empty_pg_result
-    @connection.async_exec("SELECT 0 WHERE FALSE")
+    conn = (::Rails.version < "7.1") ? @connection : @raw_connection
+    conn.async_exec("SELECT 0 WHERE FALSE")
   end
 end
 ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(StatementCaptureConnection)
