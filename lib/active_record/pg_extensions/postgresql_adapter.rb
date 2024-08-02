@@ -112,9 +112,10 @@ module ActiveRecord
         else
           old_search_path = schema_search_path
           manual_rollback = false
+          result = nil
           transaction(requires_new: true) do
             self.schema_search_path += ",#{schema}"
-            yield
+            result = yield
             self.schema_search_path = old_search_path
           rescue ActiveRecord::StatementInvalid, ActiveRecord::Rollback => e
             # the transaction rolling back will revert the search path change;
@@ -126,6 +127,8 @@ module ActiveRecord
           # the transaction call will swallow ActiveRecord::Rollback,
           # but we want it this method to be transparent
           raise manual_rollback if manual_rollback
+
+          result
         end
       end
 
