@@ -197,6 +197,11 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       end.to raise_error(ActiveRecord::StatementInvalid)
       expect(connection.schema_search_path).to eq "public"
     end
+
+    it "returns the value from the block whether or not the schema is added" do
+      expect(connection.add_schema_to_search_path("public") { 1 }).to eq 1
+      expect(connection.add_schema_to_search_path("postgis") { 2 }).to eq 2
+    end
   end
 
   describe "#vacuum" do
