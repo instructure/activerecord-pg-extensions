@@ -114,6 +114,7 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
     it "removes a NOT VALID index before re-adding" do
       expect(connection).to receive(:select_value).with(/indisvalid/, "SCHEMA").and_return(false)
       expect(connection).to receive(:remove_index).with(:users, name: "index_users_on_name", algorithm: :concurrently)
+      allow(connection).to receive(:max_identifier_length).and_return(63)
 
       connection.add_index :users, :name, algorithm: :concurrently, if_not_exists: true
       expect(connection.executed_statements).to eq [
@@ -123,6 +124,7 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
 
     it "does nothing if the index already exists" do
       expect(connection).not_to receive(:select_value)
+      allow(connection).to receive(:max_identifier_length).and_return(63)
 
       connection.add_index :users, :name, if_not_exists: true
       expect(connection.executed_statements).to eq [
