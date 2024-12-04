@@ -25,14 +25,6 @@ jobs:
           - 'rails-7.2'
           - 'Gemfile.lock' # rails-8.0
 
-        include:
-          - ruby-version: '2.7'
-            bundler: '2.4.20'
-          - ruby-version: '3.0'
-            bundler: '2.5.23'
-          - ruby-version: '3.1'
-            bundler: '2.5.23'
-
         exclude:
           - ruby-version: '3.3'
             lockfile: 'rails-7.0'
@@ -73,7 +65,6 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          bundler: ${{ matrix.bundler }}
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true
         env:
@@ -100,3 +91,16 @@ jobs:
       - name: Run RuboCop
         run: bin/rubocop
         timeout-minutes: 2
+  
+  lint-lockfile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.2
+          bundler-cache: true
+      - name: Ensure Lockfiles are Synchronized
+        run: bundle install && bundle check
