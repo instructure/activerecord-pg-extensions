@@ -2,7 +2,7 @@
 
 source "https://rubygems.org"
 
-plugin "bundler-multilock", "1.3.4"
+plugin "bundler-multilock", "1.4.0"
 return unless Plugin.installed?("bundler-multilock")
 
 Plugin.send(:load_plugin, "bundler-multilock")
@@ -31,9 +31,16 @@ lockfile "rails-7.2", default: ruby30or31 do
   gem "railties", "~> 7.2.0"
 end
 
-lockfile do
+lockfile "rails-8.0" do
   gem "activerecord", "~> 8.0.0"
   # satisfy bundler-multilock that yes, indeed, we want nokogiri to differ between the lockfiles
   gem "nokogiri", ">= 1.16.0"
   gem "railties", "~> 8.0.0"
+end
+
+lockfile do
+  gem "activerecord", "~> 8.1.0"
+  # satisfy bundler-multilock that yes, indeed, we want nokogiri to differ between the lockfiles
+  gem "nokogiri", ">= 1.16.0"
+  gem "railties", "~> 8.1.0"
 end
