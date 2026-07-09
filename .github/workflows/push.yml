@@ -18,7 +18,9 @@ jobs:
           - '3.4'
         lockfile:
           - 'Gemfile.rails-7.2.lock'
-          - 'Gemfile.lock' # rails-8.0
+          - 'Gemfile.rails-8.0.lock'
+          - 'Gemfile.lock' # rails-8.1
+
     services:
       postgres:
         image: postgres
