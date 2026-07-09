@@ -57,7 +57,7 @@ module ActiveRecord
           raise ArgumentError, "Cannot change schema and upgrade to a particular version in a single statement"
         end
 
-        sql = +"ALTER EXTENSION #{extension}"
+        sql = "ALTER EXTENSION #{extension}"
         sql << " UPDATE" if version
         sql << " TO #{quote(version)}" if version && version != true
         sql << " SET SCHEMA #{schema}" if schema
