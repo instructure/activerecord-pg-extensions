@@ -14,9 +14,14 @@ lockfile "rails-7.2" do
   gem "railties", "~> 7.2.0"
 end
 
-lockfile do
+lockfile "rails-8.0" do
   gem "activerecord", "~> 8.0.0"
   gem "railties", "~> 8.0.0"
+end
+
+lockfile do
+  gem "activerecord", "~> 8.1.0"
+  gem "railties", "~> 8.1.0"
 end
 
 gem "debug", "~> 1.8"
