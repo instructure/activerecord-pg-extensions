@@ -14,36 +14,11 @@ jobs:
       fail-fast: false
       matrix:
         ruby-version:
-          - '2.7'
-          - '3.0'
-          - '3.1'
-          - '3.2'
           - '3.3'
+          - '3.4'
         lockfile:
-          - 'rails-7.0'
-          - 'rails-7.1'
-          - 'rails-7.2'
+          - 'Gemfile.rails-7.2.lock'
           - 'Gemfile.lock' # rails-8.0
-
-        exclude:
-          - ruby-version: '3.3'
-            lockfile: 'rails-7.0'
-
-          - ruby-version: '3.3'
-            lockfile: 'rails-7.1'
-
-          - ruby-version: '2.7'
-            lockfile: 'rails-7.2'
-          - ruby-version: '3.0'
-            lockfile: 'rails-7.2'
-
-          - ruby-version: '2.7'
-            lockfile: 'Gemfile.lock'
-          - ruby-version: '3.0'
-            lockfile: 'Gemfile.lock'
-          - ruby-version: '3.1'
-            lockfile: 'Gemfile.lock'
-
     services:
       postgres:
         image: postgres
@@ -86,7 +61,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.3
+          ruby-version: 3.4
           bundler-cache: true
       - name: Run RuboCop
         run: bin/rubocop
@@ -100,7 +75,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.2
+          ruby-version: 3.3
           bundler-cache: true
       - name: Ensure Lockfiles are Synchronized
         run: bundle install && bundle check

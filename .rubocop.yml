@@ -11,7 +11,7 @@ inherit_mode:
     - Exclude
 
 AllCops:
-  TargetRubyVersion: 2.7
+  TargetRubyVersion: 3.3
   Exclude:
     - 'gemfiles/*'
 
