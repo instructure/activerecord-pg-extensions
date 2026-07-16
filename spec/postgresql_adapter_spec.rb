@@ -436,4 +436,43 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       )
     end
   end
+
+  describe "#rename_constraint" do
+    around do |example|
+      connection.dont_execute(&example)
+    end
+
+    it "renames the constraint" do
+      connection.rename_constraint(:users, :old_chk, :new_chk)
+      expect(connection.executed_statements).to eq(
+        ['ALTER TABLE "users" RENAME CONSTRAINT "old_chk" TO "new_chk"']
+      )
+    end
+
+    context "with if_exists" do
+      it "skips when the constraint does not exist" do
+        allow(connection).to receive(:constraint_exists?).and_return(false)
+        connection.rename_constraint(:users, :old_chk, :new_chk, if_exists: true)
+        expect(connection.executed_statements).to be_empty
+      end
+
+      it "renames when the constraint exists" do
+        allow(connection).to receive(:constraint_exists?).and_return(true)
+        connection.rename_constraint(:users, :old_chk, :new_chk, if_exists: true)
+        expect(connection.executed_statements).to eq(
+          ['ALTER TABLE "users" RENAME CONSTRAINT "old_chk" TO "new_chk"']
+        )
+      end
+    end
+
+    it "is reversible" do
+      recorder = ActiveRecord::Migration::CommandRecorder.new(connection)
+      recorder.revert do
+        recorder.rename_constraint(:users, :old_chk, :new_chk, if_exists: true)
+      end
+      expect(recorder.commands).to eq(
+        [[:rename_constraint, [:users, :new_chk, :old_chk, { if_exists: true }]]]
+      )
+    end
+  end
 end
