@@ -569,4 +569,64 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       end.to raise_error(ArgumentError, /unknown change_constraint option/)
     end
   end
+
+  describe "reversing existence options" do
+    def inverted
+      recorder = ActiveRecord::Migration::CommandRecorder.new(connection)
+      recorder.revert { yield recorder }
+      recorder.commands.map { |command, args, _block| [command, args] }
+    end
+
+    it "reverses add_index(if_not_exists:) into remove_index(if_exists:)" do
+      commands = inverted { |r| r.add_index(:users, :foo, if_not_exists: true, name: "idx") }
+      expect(commands).to eq([[:remove_index, [:users, :foo, { name: "idx", if_exists: true }]]])
+    end
+
+    it "reverses remove_index(if_exists:) into add_index(if_not_exists:)" do
+      commands = inverted { |r| r.remove_index(:users, :foo, if_exists: true, name: "idx") }
+      expect(commands).to eq([[:add_index, [:users, :foo, { name: "idx", if_not_exists: true }]]])
+    end
+
+    it "reverses add_column(if_not_exists:) into remove_column(if_exists:)" do
+      commands = inverted { |r| r.add_column(:users, :foo, :string, if_not_exists: true) }
+      expect(commands).to eq([[:remove_column, [:users, :foo, :string, { if_exists: true }]]])
+    end
+
+    it "reverses remove_column(if_exists:) into add_column(if_not_exists:)" do
+      commands = inverted { |r| r.remove_column(:users, :foo, :string, if_exists: true) }
+      expect(commands).to eq([[:add_column, [:users, :foo, :string, { if_not_exists: true }]]])
+    end
+
+    it "reverses add_foreign_key(if_not_exists:) into remove_foreign_key(if_exists:)" do
+      commands = inverted { |r| r.add_foreign_key(:users, :accounts, if_not_exists: true) }
+      expect(commands).to eq([[:remove_foreign_key, [:users, :accounts, { if_exists: true }]]])
+    end
+
+    it "reverses remove_foreign_key(if_exists:) into add_foreign_key(if_not_exists:)" do
+      commands = inverted { |r| r.remove_foreign_key(:users, :accounts, if_exists: true) }
+      expect(commands).to eq([[:add_foreign_key, [:users, :accounts, { if_not_exists: true }]]])
+    end
+
+    it "reverses add_reference(if_not_exists:) into remove_reference(if_exists:)" do
+      commands = inverted { |r| r.add_reference(:users, :account, if_not_exists: true) }
+      expect(commands).to eq([[:remove_reference, [:users, :account, { if_exists: true }]]])
+    end
+
+    it "reverses remove_reference(if_exists:) into add_reference(if_not_exists:)" do
+      commands = inverted { |r| r.remove_reference(:users, :account, if_exists: true) }
+      expect(commands).to eq([[:add_reference, [:users, :account, { if_not_exists: true }]]])
+    end
+
+    it "reverses the existence option nested in a reference's index: hash" do
+      commands = inverted { |r| r.add_reference(:users, :account, index: { if_not_exists: true, unique: true }) }
+      expect(commands).to eq(
+        [[:remove_reference, [:users, :account, { index: { if_exists: true, unique: true } }]]]
+      )
+    end
+
+    it "reverses add_belongs_to as add_reference" do
+      commands = inverted { |r| r.add_belongs_to(:users, :account, if_not_exists: true) }
+      expect(commands).to eq([[:remove_reference, [:users, :account, { if_exists: true }]]])
+    end
+  end
 end
