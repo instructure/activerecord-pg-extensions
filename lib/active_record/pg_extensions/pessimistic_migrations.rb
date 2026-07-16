@@ -88,6 +88,66 @@ module ActiveRecord
         end
         super
       end
+
+      # Replace one check constraint with another
+      #
+      # @param table [Symbol] The table name
+      # @param from [String, Hash] The check constraint to be replaced.
+      #   If a Hash is provided, it must contain an :expression key with the check constraint expression.
+      #   Other options are merged with `options` and passed through.
+      # @param to [String, Hash] The new check constraint to be added.
+      #   If a Hash is provided, it must contain an :expression key with the check constraint expression.
+      #   Other options are merged with `options` and passed through.
+      # @param if_exists [true, false] If true, the entire operation should be idempotent (only
+      #   dropping/renaming the old constraint if it exists, only adding the new constraint if it doesn't exist.)
+      # @param delay_validation [true, false] If true, the new check constraint will be added as NOT VALID and
+      #   validated before removing the old check constraint.
+      def change_check_constraint(table, from:, to:, if_exists: false, delay_validation: false, **options)
+        delay_validation = false if open_transactions.positive?
+        options[:validate] = false if delay_validation
+
+        if from.is_a?(Hash)
+          from_options = from.merge(options)
+          from_expression = from_options.delete(:expression)
+        else
+          from_expression = from
+          from_options = options
+        end
+        if to.is_a?(Hash)
+          to_options = to.merge(options)
+          to_expression = to_options.delete(:expression)
+        else
+          to_expression = to
+          to_options = options
+        end
+
+        new_constraint_name = check_constraint_name(table, expression: to_expression, **to_options)
+        # when delaying validation, we don't drop the old constraint until after the new one is validated,
+        # so we need to rename it if the names are the same
+        if delay_validation
+          old_constraint_name = check_constraint_name(table, expression: from_expression, **from_options)
+          if old_constraint_name == new_constraint_name
+            new_old_constraint_name = "#{old_constraint_name}_old"
+            unless check_constraint_exists?(table, name: new_old_constraint_name)
+              rename_constraint(table, old_constraint_name, new_old_constraint_name, if_exists:)
+            end
+            old_constraint_name = new_old_constraint_name
+          end
+        else
+          remove_check_constraint(table, from_expression, if_exists:, **from_options)
+        end
+
+        add_check_constraint(table,
+                             to_expression,
+                             **to_options,
+                             if_not_exists: if_exists || delay_validation,
+                             validate: !delay_validation)
+
+        return unless delay_validation
+
+        validate_constraint(table, new_constraint_name)
+        remove_check_constraint(table, name: old_constraint_name, if_exists: true)
+      end
     end
   end
 end
