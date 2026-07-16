@@ -132,4 +132,104 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       ]
     end
   end
+
+  describe "#change_check_constraint" do
+    it "drops the old constraint and adds the new one" do
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "chk_old"))
+      connection.change_check_constraint(:users, from: "old_expr", to: "new_expr")
+      expect(connection.executed_statements).to eq [
+        'ALTER TABLE "users" DROP CONSTRAINT "chk_old"',
+        'ALTER TABLE "users" ADD CONSTRAINT chk_rails_5fb2f20b36 CHECK (new_expr)'
+      ]
+    end
+
+    it "accepts hashes with :expression and extra options for from and to" do
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "my_old"))
+      connection.change_check_constraint(:users,
+                                         from: { expression: "old_expr", name: "my_old" },
+                                         to: { expression: "new_expr", name: "my_new" })
+      expect(connection.executed_statements).to eq [
+        'ALTER TABLE "users" DROP CONSTRAINT "my_old"',
+        'ALTER TABLE "users" ADD CONSTRAINT my_new CHECK (new_expr)'
+      ]
+    end
+
+    it "delays validation, dropping the old constraint only after the new one is validated" do
+      allow(connection).to receive(:check_constraint_exists?) { |_table, **opts| opts[:name] == "chk_rails_6fa6c8b575" }
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "chk_rails_6fa6c8b575"))
+      connection.change_check_constraint(:users, from: "old_expr", to: "new_expr", delay_validation: true)
+      expect(connection.executed_statements).to eq [
+        'ALTER TABLE "users" ADD CONSTRAINT chk_rails_5fb2f20b36 CHECK (new_expr) NOT VALID',
+        'ALTER TABLE "users" VALIDATE CONSTRAINT "chk_rails_5fb2f20b36"',
+        'ALTER TABLE "users" DROP CONSTRAINT "chk_rails_6fa6c8b575"'
+      ]
+    end
+
+    it "renames the old constraint first when delaying validation and the names collide" do
+      # the temporary name doesn't exist until we rename into it
+      renamed = false
+      allow(connection).to receive(:check_constraint_exists?) do |_table, name: nil, **|
+        name == "same_old" && renamed
+      end
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "same_old"))
+      allow(connection).to receive(:rename_constraint).and_wrap_original do |original, *args, **kwargs|
+        renamed = true
+        original.call(*args, **kwargs)
+      end
+      connection.change_check_constraint(:users,
+                                         from: { expression: "x", name: "same" },
+                                         to: { expression: "y", name: "same" },
+                                         delay_validation: true)
+      expect(connection.executed_statements).to eq [
+        'ALTER TABLE "users" RENAME CONSTRAINT "same" TO "same_old"',
+        'ALTER TABLE "users" ADD CONSTRAINT same CHECK (y) NOT VALID',
+        'ALTER TABLE "users" VALIDATE CONSTRAINT "same"',
+        'ALTER TABLE "users" DROP CONSTRAINT "same_old"'
+      ]
+    end
+
+    it "skips the rename when the temporary constraint name is already taken" do
+      # a leftover "same_old" from a previously-interrupted run already exists, so the
+      # idempotency guard skips the rename and proceeds straight to add/validate/drop
+      allow(connection).to receive(:check_constraint_exists?) { |_table, name: nil, **| name == "same_old" }
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "same_old"))
+      connection.change_check_constraint(:users,
+                                         from: { expression: "x", name: "same" },
+                                         to: { expression: "y", name: "same" },
+                                         delay_validation: true)
+      expect(connection.executed_statements).to eq [
+        'ALTER TABLE "users" ADD CONSTRAINT same CHECK (y) NOT VALID',
+        'ALTER TABLE "users" VALIDATE CONSTRAINT "same"',
+        'ALTER TABLE "users" DROP CONSTRAINT "same_old"'
+      ]
+    end
+
+    it "ignores delay_validation inside a transaction" do
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "chk_old"))
+      connection.transaction do
+        connection.change_check_constraint(:users, from: "old_expr", to: "new_expr", delay_validation: true)
+      end
+      expect(connection.executed_statements).to eq [
+        "BEGIN",
+        'ALTER TABLE "users" DROP CONSTRAINT "chk_old"',
+        'ALTER TABLE "users" ADD CONSTRAINT chk_rails_5fb2f20b36 CHECK (new_expr)',
+        "COMMIT"
+      ]
+    end
+
+    it "is reversible by swapping from and to, keeping other arguments the same" do
+      recorder = ActiveRecord::Migration::CommandRecorder.new(connection)
+      recorder.revert do
+        recorder.change_check_constraint(:users,
+                                         from: "old_expr",
+                                         to: "new_expr",
+                                         if_exists: true,
+                                         delay_validation: true)
+      end
+      expect(recorder.commands).to eq(
+        [[:change_check_constraint,
+          [:users, { from: "new_expr", to: "old_expr", if_exists: true, delay_validation: true }]]]
+      )
+    end
+  end
 end
