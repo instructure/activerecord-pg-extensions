@@ -27,6 +27,17 @@ module ActiveRecord
         set_constraints(:immediate, *constraints)
       end
 
+      # renames a constraint on a table
+      # see https://www.postgresql.org/docs/current/sql-altertable.html
+      def rename_constraint(table_name, old_name, new_name, if_exists: false)
+        return if if_exists && !constraint_exists?(table_name, name: old_name)
+
+        execute(<<~SQL.squish)
+          ALTER TABLE #{quote_table_name(table_name)}
+          RENAME CONSTRAINT #{quote_column_name(old_name)} TO #{quote_column_name(new_name)}
+        SQL
+      end
+
       # see https://www.postgresql.org/docs/current/sql-altertable.html#SQL-CREATETABLE-REPLICA-IDENTITY
       def set_replica_identity(table, identity = :default)
         identity_clause = case identity
@@ -283,6 +294,19 @@ module ActiveRecord
         map.register_type "pg_lsn", ActiveRecord::ConnectionAdapters::PostgreSQL::OID::SpecializedString.new(:pg_lsn)
 
         super
+      end
+
+      def constraint_exists?(table_name, name:)
+        scope = quoted_scope(name)
+        table = quoted_scope(table_name)
+        select_value(<<~SQL, "SCHEMA") == 1
+          SELECT 1 FROM pg_constraint
+          INNER JOIN pg_class ON pg_class.oid = pg_constraint.conrelid
+          INNER JOIN pg_namespace ON pg_namespace.oid = pg_constraint.connamespace
+          WHERE pg_constraint.conname = #{scope[:name]}
+            AND pg_class.relname = #{table[:name]}
+            AND pg_namespace.nspname = #{scope[:schema]}
+        SQL
       end
 
       def pre_pg10_wal_function_name(func)
