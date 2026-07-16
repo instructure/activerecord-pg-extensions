@@ -134,6 +134,8 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
   end
 
   describe "#change_check_constraint" do
+    before { allow(connection).to receive(:max_identifier_length).and_return(63) }
+
     it "drops the old constraint and adds the new one" do
       allow(connection).to receive(:check_constraint_for!).and_return(double(name: "chk_old"))
       connection.change_check_constraint(:users, from: "old_expr", to: "new_expr")
@@ -169,9 +171,9 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       # the temporary name doesn't exist until we rename into it
       renamed = false
       allow(connection).to receive(:check_constraint_exists?) do |_table, name: nil, **|
-        name == "same_old" && renamed
+        name == "same_to_be_replaced" && renamed
       end
-      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "same_old"))
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "same_to_be_replaced"))
       allow(connection).to receive(:rename_constraint).and_wrap_original do |original, *args, **kwargs|
         renamed = true
         original.call(*args, **kwargs)
@@ -181,18 +183,18 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
                                          to: { expression: "y", name: "same" },
                                          delay_validation: true)
       expect(connection.executed_statements).to eq [
-        'ALTER TABLE "users" RENAME CONSTRAINT "same" TO "same_old"',
+        'ALTER TABLE "users" RENAME CONSTRAINT "same" TO "same_to_be_replaced"',
         'ALTER TABLE "users" ADD CONSTRAINT same CHECK (y) NOT VALID',
         'ALTER TABLE "users" VALIDATE CONSTRAINT "same"',
-        'ALTER TABLE "users" DROP CONSTRAINT "same_old"'
+        'ALTER TABLE "users" DROP CONSTRAINT "same_to_be_replaced"'
       ]
     end
 
     it "skips the rename when the temporary constraint name is already taken" do
-      # a leftover "same_old" from a previously-interrupted run already exists, so the
+      # a leftover "same_to_be_replaced" from a previously-interrupted run already exists, so the
       # idempotency guard skips the rename and proceeds straight to add/validate/drop
-      allow(connection).to receive(:check_constraint_exists?) { |_table, name: nil, **| name == "same_old" }
-      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "same_old"))
+      allow(connection).to receive(:check_constraint_exists?) { |_table, name: nil, **| name == "same_to_be_replaced" }
+      allow(connection).to receive(:check_constraint_for!).and_return(double(name: "same_to_be_replaced"))
       connection.change_check_constraint(:users,
                                          from: { expression: "x", name: "same" },
                                          to: { expression: "y", name: "same" },
@@ -200,7 +202,7 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       expect(connection.executed_statements).to eq [
         'ALTER TABLE "users" ADD CONSTRAINT same CHECK (y) NOT VALID',
         'ALTER TABLE "users" VALIDATE CONSTRAINT "same"',
-        'ALTER TABLE "users" DROP CONSTRAINT "same_old"'
+        'ALTER TABLE "users" DROP CONSTRAINT "same_to_be_replaced"'
       ]
     end
 
@@ -273,9 +275,9 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
                               to: { column: :b, name: "same" },
                               algorithm: :concurrently)
       expect(connection.executed_statements).to eq [
-        'ALTER INDEX "same" RENAME TO "same_old"',
+        'ALTER INDEX "same" RENAME TO "same_to_be_replaced"',
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS "same" ON "users" ("b")',
-        'DROP INDEX CONCURRENTLY "same_old"'
+        'DROP INDEX CONCURRENTLY "same_to_be_replaced"'
       ]
     end
 
@@ -287,8 +289,20 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
                               algorithm: :concurrently)
       expect(connection.executed_statements).to eq [
         'CREATE INDEX CONCURRENTLY IF NOT EXISTS "same" ON "users" ("b")',
-        'DROP INDEX CONCURRENTLY "same_old"'
+        'DROP INDEX CONCURRENTLY "same_to_be_replaced"'
       ]
+    end
+
+    it "keeps the temporary index name within the identifier length limit" do
+      allow(connection).to receive(:index_name_exists?).and_return(false)
+      long_name = "a" * 60 # "#{long_name}_old" would be 64 chars, over the 63-char limit
+      connection.change_index(:users,
+                              from: { column: :a, name: long_name },
+                              to: { column: :b, name: long_name },
+                              algorithm: :concurrently)
+      temp_name = connection.executed_statements.first[/RENAME TO "([^"]+)"/, 1]
+      expect(temp_name.bytesize).to be <= 63
+      expect(temp_name).to start_with("a" * 52).and match(/_[0-9a-f]{10}\z/)
     end
 
     it "skips the rename and the drop when if_exists is set and the old index is missing" do
