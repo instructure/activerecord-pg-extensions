@@ -115,7 +115,7 @@ module ActiveRecord
         if delay_validation
           old_constraint_name = check_constraint_name(table, expression: from_expression, **from_options)
           if old_constraint_name == new_constraint_name
-            new_old_constraint_name = "#{old_constraint_name}_old"
+            new_old_constraint_name = temporary_name(old_constraint_name)
             unless check_constraint_exists?(table, name: new_old_constraint_name)
               rename_constraint(table, old_constraint_name, new_old_constraint_name, if_exists:)
             end
@@ -163,7 +163,7 @@ module ActiveRecord
         if concurrently
           old_index_name = from_options[:name]&.to_s || index_name(table, column: from_column)
           if old_index_name == new_index_name
-            new_old_index_name = "#{old_index_name}_old"
+            new_old_index_name = temporary_name(old_index_name)
             # rename_index has no if_exists option, so guard it: skip if the old index is missing
             # (only relevant when if_exists makes the whole operation idempotent) or the temp name is taken
             old_missing = if_exists && !index_name_exists?(table, old_index_name)
@@ -197,6 +197,19 @@ module ActiveRecord
 
         arg_options = arg.merge(options)
         [arg_options.delete(key), arg_options]
+      end
+
+      # derives a temporary name from +name+ to rename an existing index/constraint out of the way.
+      # Prefers a readable "<name>_to_be_replaced", but falls back to a hashed (still deterministic,
+      # still unique to +name+) form when that would exceed the database's identifier length limit,
+      # following the same scheme Rails uses for long index names.
+      def temporary_name(name)
+        suffixed = "#{name}_to_be_replaced"
+        return suffixed if suffixed.bytesize <= max_identifier_length
+
+        hashed_identifier = "_#{OpenSSL::Digest::SHA256.hexdigest(name.to_s).first(10)}"
+        short_name = name.to_s.truncate_bytes(max_identifier_length - hashed_identifier.bytesize, omission: nil)
+        "#{short_name}#{hashed_identifier}"
       end
     end
   end
