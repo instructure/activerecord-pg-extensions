@@ -475,4 +475,98 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
       )
     end
   end
+
+  describe "#change_constraint" do
+    around do |example|
+      connection.dont_execute(&example)
+    end
+
+    it "raises if no options are given" do
+      expect { connection.change_constraint(:users, :my_fk) }.to raise_error(ArgumentError)
+    end
+
+    it "raises on an invalid initially value" do
+      expect { connection.change_constraint(:users, :my_fk, initially: :garbage) }.to raise_error(ArgumentError)
+    end
+
+    it "sets deferrable" do
+      connection.change_constraint(:users, :my_fk, deferrable: true)
+      expect(connection.executed_statements).to eq(
+        ['ALTER TABLE "users" ALTER CONSTRAINT "my_fk" DEFERRABLE']
+      )
+    end
+
+    it "sets not deferrable" do
+      connection.change_constraint(:users, :my_fk, deferrable: false)
+      expect(connection.executed_statements).to eq(
+        ['ALTER TABLE "users" ALTER CONSTRAINT "my_fk" NOT DEFERRABLE']
+      )
+    end
+
+    it "combines multiple options in a single statement" do
+      connection.change_constraint(:users, :my_fk, deferrable: true, initially: :deferred, enforced: false)
+      expect(connection.executed_statements).to eq(
+        ['ALTER TABLE "users" ALTER CONSTRAINT "my_fk" DEFERRABLE INITIALLY DEFERRED NOT ENFORCED']
+      )
+    end
+
+    it "sets initially immediate and enforced" do
+      connection.change_constraint(:users, :my_fk, initially: :immediate, enforced: true)
+      expect(connection.executed_statements).to eq(
+        ['ALTER TABLE "users" ALTER CONSTRAINT "my_fk" INITIALLY IMMEDIATE ENFORCED']
+      )
+    end
+
+    it "sets inherit in its own statement" do
+      connection.change_constraint(:users, :my_fk, inherit: true)
+      expect(connection.executed_statements).to eq(
+        ['ALTER TABLE "users" ALTER CONSTRAINT "my_fk" INHERIT']
+      )
+    end
+
+    it "sets no inherit in a statement separate from other options" do
+      connection.change_constraint(:users, :my_fk, deferrable: true, inherit: false)
+      expect(connection.executed_statements).to eq(
+        ['ALTER TABLE "users" ALTER CONSTRAINT "my_fk" DEFERRABLE',
+         'ALTER TABLE "users" ALTER CONSTRAINT "my_fk" NO INHERIT']
+      )
+    end
+
+    it "is reversible, inverting each non-nil option" do
+      recorder = ActiveRecord::Migration::CommandRecorder.new(connection)
+      recorder.revert do
+        recorder.change_constraint(:users,
+                                   :my_fk,
+                                   deferrable: true,
+                                   initially: :deferred,
+                                   enforced: false,
+                                   inherit: true)
+      end
+      expect(recorder.commands).to eq(
+        [[:change_constraint,
+          [:users, :my_fk, { deferrable: false, initially: :immediate, enforced: true, inherit: false }]]]
+      )
+    end
+
+    it "raises when reversing an invalid :initially value" do
+      recorder = ActiveRecord::Migration::CommandRecorder.new(connection)
+      expect do
+        recorder.revert { recorder.change_constraint(:users, :my_fk, initially: :garbage) }
+      end.to raise_error(ArgumentError, /initially must be :deferred or :immediate/)
+    end
+
+    it "raises when reversing a non-boolean flag option" do
+      recorder = ActiveRecord::Migration::CommandRecorder.new(connection)
+      expect do
+        recorder.revert { recorder.change_constraint(:users, :my_fk, deferrable: "yes") }
+      end.to raise_error(ArgumentError, /deferrable must be true or false/)
+    end
+
+    it "raises when reversing an unknown option" do
+      recorder = ActiveRecord::Migration::CommandRecorder.new(connection)
+      expect do
+        recorder.revert { recorder.change_constraint(:users, :my_fk, bogus: true) }
+      end.to raise_error(ArgumentError, /unknown change_constraint option/)
+    end
+  end
 end
