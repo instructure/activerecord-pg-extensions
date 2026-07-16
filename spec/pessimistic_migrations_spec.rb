@@ -232,4 +232,97 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       )
     end
   end
+
+  describe "#change_index" do
+    before do
+      allow(connection).to receive_messages(max_identifier_length: 63, select_value: nil, index_exists?: true)
+      allow(connection).to receive(:index_name_for_remove) do |_table, column, options|
+        options[:name] || "index_users_on_#{Array(column).join("_and_")}"
+      end
+    end
+
+    it "drops the old index and adds the new one" do
+      connection.change_index(:users, from: :a, to: :b)
+      expect(connection.executed_statements).to eq [
+        'DROP INDEX  "index_users_on_a"',
+        'CREATE INDEX "index_users_on_b" ON "users" ("b")'
+      ]
+    end
+
+    it "accepts hashes with :column and extra options for from and to" do
+      connection.change_index(:users, from: { column: :a, name: "my_old" }, to: { column: :b, name: "my_new" })
+      expect(connection.executed_statements).to eq [
+        'DROP INDEX  "my_old"',
+        'CREATE INDEX "my_new" ON "users" ("b")'
+      ]
+    end
+
+    it "creates the new index concurrently, dropping the old one only afterward" do
+      allow(connection).to receive(:index_name_exists?).and_return(false)
+      connection.change_index(:users, from: :a, to: :b, algorithm: :concurrently)
+      expect(connection.executed_statements).to eq [
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS "index_users_on_b" ON "users" ("b")',
+        'DROP INDEX CONCURRENTLY "index_users_on_a"'
+      ]
+    end
+
+    it "renames the old index first when creating concurrently and the names collide" do
+      allow(connection).to receive(:index_name_exists?).and_return(false)
+      connection.change_index(:users,
+                              from: { column: :a, name: "same" },
+                              to: { column: :b, name: "same" },
+                              algorithm: :concurrently)
+      expect(connection.executed_statements).to eq [
+        'ALTER INDEX "same" RENAME TO "same_old"',
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS "same" ON "users" ("b")',
+        'DROP INDEX CONCURRENTLY "same_old"'
+      ]
+    end
+
+    it "skips the rename when the temporary index name is already taken" do
+      allow(connection).to receive(:index_name_exists?).and_return(true)
+      connection.change_index(:users,
+                              from: { column: :a, name: "same" },
+                              to: { column: :b, name: "same" },
+                              algorithm: :concurrently)
+      expect(connection.executed_statements).to eq [
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS "same" ON "users" ("b")',
+        'DROP INDEX CONCURRENTLY "same_old"'
+      ]
+    end
+
+    it "skips the rename and the drop when if_exists is set and the old index is missing" do
+      allow(connection).to receive_messages(index_name_exists?: false, index_exists?: false)
+      connection.change_index(:users,
+                              from: { column: :a, name: "same" },
+                              to: { column: :b, name: "same" },
+                              if_exists: true,
+                              algorithm: :concurrently)
+      expect(connection.executed_statements).to eq [
+        'CREATE INDEX CONCURRENTLY IF NOT EXISTS "same" ON "users" ("b")'
+      ]
+    end
+
+    it "ignores algorithm: :concurrently inside a transaction" do
+      connection.transaction do
+        connection.change_index(:users, from: :a, to: :b, algorithm: :concurrently)
+      end
+      expect(connection.executed_statements).to eq [
+        "BEGIN",
+        'DROP INDEX  "index_users_on_a"',
+        'CREATE INDEX "index_users_on_b" ON "users" ("b")',
+        "COMMIT"
+      ]
+    end
+
+    it "is reversible by swapping from and to, keeping other arguments the same" do
+      recorder = ActiveRecord::Migration::CommandRecorder.new(connection)
+      recorder.revert do
+        recorder.change_index(:users, from: :a, to: :b, if_exists: true, algorithm: :concurrently)
+      end
+      expect(recorder.commands).to eq(
+        [[:change_index, [:users, { from: :b, to: :a, if_exists: true, algorithm: :concurrently }]]]
+      )
+    end
+  end
 end
