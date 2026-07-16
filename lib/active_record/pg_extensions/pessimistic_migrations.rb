@@ -88,22 +88,6 @@ module ActiveRecord
         end
         super
       end
-
-      def add_check_constraint(table_name, expression, if_not_exists: false, **options)
-        options = check_constraint_options(table_name, expression, options)
-        return if if_not_exists && check_constraint_for(table_name, **options)
-
-        super
-      end
-
-      if ActiveRecord.version < Gem::Version.new("7.1")
-        def remove_check_constraint(table_name, expression = nil, if_exists: false, **options)
-          options = check_constraint_options(table_name, expression, options)
-          return if if_exists && !check_constraint_for(table_name, **options)
-
-          super
-        end
-      end
     end
   end
 end
