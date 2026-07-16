@@ -38,6 +38,30 @@ module ActiveRecord
         SQL
       end
 
+      # alters the attributes of an existing constraint on a table
+      # see https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-DESC-ALTER-CONSTRAINT
+      def change_constraint(table, constraint, deferrable: nil, enforced: nil, initially: nil, inherit: nil)
+        if deferrable.nil? && initially.nil? && enforced.nil? && inherit.nil?
+          raise ArgumentError, "at least one of :deferrable, :initially, :enforced, or :inherit must be specified"
+        end
+
+        options = []
+        options << (deferrable ? "DEFERRABLE" : "NOT DEFERRABLE") unless deferrable.nil?
+        unless initially.nil?
+          case initially
+          when :deferred then options << "INITIALLY DEFERRED"
+          when :immediate then options << "INITIALLY IMMEDIATE"
+          else raise ArgumentError, "initially must be :deferred or :immediate"
+          end
+        end
+        options << (enforced ? "ENFORCED" : "NOT ENFORCED") unless enforced.nil?
+
+        alter_table = "ALTER TABLE #{quote_table_name(table)} ALTER CONSTRAINT #{quote_column_name(constraint)}"
+        execute("#{alter_table} #{options.join(" ")}") unless options.empty?
+        # INHERIT/NO INHERIT cannot be combined with other options
+        execute("#{alter_table} #{inherit ? "INHERIT" : "NO INHERIT"}") unless inherit.nil?
+      end
+
       # see https://www.postgresql.org/docs/current/sql-altertable.html#SQL-CREATETABLE-REPLICA-IDENTITY
       def set_replica_identity(table, identity = :default)
         identity_clause = case identity
