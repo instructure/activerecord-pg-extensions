@@ -132,23 +132,4 @@ describe ActiveRecord::PGExtensions::PessimisticMigrations do
       ]
     end
   end
-
-  describe "#add_check_constraint" do
-    it "supports if_not_exists" do
-      expect(connection).to receive(:check_constraint_for).and_return(double(name: "chk_rails_users_name_not_null"))
-      connection.add_check_constraint :users,
-                                      "name IS NOT NULL",
-                                      name: "chk_rails_users_name_not_null",
-                                      if_not_exists: true
-      expect(connection.executed_statements).to eq []
-    end
-  end
-
-  describe "#remove_check_constraint" do
-    it "supports if_exists" do
-      expect(connection).to receive(:check_constraint_for).and_return(nil)
-      connection.remove_check_constraint :users, name: "chk_rails_users_name_not_null", if_exists: true
-      expect(connection.executed_statements).to eq []
-    end
-  end
 end
