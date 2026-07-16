@@ -14,7 +14,7 @@ module ActiveRecord
           require "active_record/pg_extensions/transaction"
 
           ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(PostgreSQLAdapter)
-          ::ActiveRecord::Migration::CommandRecorder.include(CommandRecorder)
+          ::ActiveRecord::Migration::CommandRecorder.prepend(CommandRecorder)
           ::ActiveRecord::ConnectionAdapters::NullTransaction.prepend(NullTransaction)
           ::ActiveRecord::ConnectionAdapters::Transaction.prepend(Transaction)
           # if they've already require 'all', then inject now
