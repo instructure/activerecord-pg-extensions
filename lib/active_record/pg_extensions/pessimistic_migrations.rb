@@ -106,20 +106,8 @@ module ActiveRecord
         delay_validation = false if open_transactions.positive?
         options[:validate] = false if delay_validation
 
-        if from.is_a?(Hash)
-          from_options = from.merge(options)
-          from_expression = from_options.delete(:expression)
-        else
-          from_expression = from
-          from_options = options
-        end
-        if to.is_a?(Hash)
-          to_options = to.merge(options)
-          to_expression = to_options.delete(:expression)
-        else
-          to_expression = to
-          to_options = options
-        end
+        from_expression, from_options = split_arg(from, :expression, options)
+        to_expression, to_options = split_arg(to, :expression, options)
 
         new_constraint_name = check_constraint_name(table, expression: to_expression, **to_options)
         # when delaying validation, we don't drop the old constraint until after the new one is validated,
@@ -147,6 +135,68 @@ module ActiveRecord
 
         validate_constraint(table, new_constraint_name)
         remove_check_constraint(table, name: old_constraint_name, if_exists: true)
+      end
+
+      # Replace one index with another
+      #
+      # @param table [Symbol] The table name
+      # @param from [String, Symbol, Array, Hash] The index to be replaced.
+      #   If a Hash is provided, it must contain a :column key with the indexed column(s).
+      #   Other options are merged with `options` and passed through.
+      # @param to [String, Symbol, Array, Hash] The new index to be added.
+      #   If a Hash is provided, it must contain a :column key with the indexed column(s).
+      #   Other options are merged with `options` and passed through.
+      # @param if_exists [true, false] If true, the entire operation should be idempotent (only
+      #   dropping/renaming the old index if it exists, only adding the new index if it doesn't exist.)
+      # @param algorithm [Symbol, nil] If :concurrently, the new index is created concurrently and the
+      #   old index is only removed after the new one exists.
+      def change_index(table, from:, to:, if_exists: false, algorithm: nil, **options)
+        algorithm = nil if open_transactions.positive?
+        concurrently = algorithm == :concurrently
+
+        from_column, from_options = split_arg(from, :column, options)
+        to_column, to_options = split_arg(to, :column, options)
+
+        new_index_name = to_options[:name]&.to_s || index_name(table, column: to_column)
+        # when creating concurrently, we don't drop the old index until after the new one is created,
+        # so we need to rename it if the names are the same
+        if concurrently
+          old_index_name = from_options[:name]&.to_s || index_name(table, column: from_column)
+          if old_index_name == new_index_name
+            new_old_index_name = "#{old_index_name}_old"
+            # rename_index has no if_exists option, so guard it: skip if the old index is missing
+            # (only relevant when if_exists makes the whole operation idempotent) or the temp name is taken
+            old_missing = if_exists && !index_name_exists?(table, old_index_name)
+            unless old_missing || index_name_exists?(table, new_old_index_name)
+              rename_index(table, old_index_name, new_old_index_name)
+            end
+            old_index_name = new_old_index_name
+          end
+        else
+          remove_index(table, from_column, if_exists:, **from_options)
+        end
+
+        add_index(table,
+                  to_column,
+                  **to_options,
+                  if_not_exists: if_exists || concurrently,
+                  algorithm:)
+
+        return unless concurrently
+
+        remove_index(table, name: old_index_name, if_exists: true, algorithm: :concurrently)
+      end
+
+      private
+
+      # splits a from/to argument into its subject and options. If a Hash is given, the given key
+      # (e.g. :column or :expression) is extracted and the rest is merged with options; otherwise
+      # the argument is treated as the subject itself.
+      def split_arg(arg, key, options)
+        return [arg, options] unless arg.is_a?(Hash)
+
+        arg_options = arg.merge(options)
+        [arg_options.delete(key), arg_options]
       end
     end
   end

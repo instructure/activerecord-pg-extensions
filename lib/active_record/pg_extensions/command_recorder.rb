@@ -16,7 +16,19 @@ module ActiveRecord
         record(:change_check_constraint, [table, options])
       end
 
+      def change_index(table, **options)
+        record(:change_index, [table, options])
+      end
+
       private
+
+      def invert_change_index(args)
+        table, options = args
+        options ||= {}
+        # reverse the change by swapping :from and :to, leaving everything else intact
+        inverted = options.merge(from: options[:to], to: options[:from])
+        [:change_index, [table, Hash.ruby2_keywords_hash(inverted)]]
+      end
 
       def invert_change_check_constraint(args)
         table, options = args
