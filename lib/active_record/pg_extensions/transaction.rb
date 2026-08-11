@@ -14,6 +14,9 @@ module ActiveRecord
           private def #{kind}=(timeout)
             return if @#{kind} == timeout
 
+            # must precede dirty!, which disables lazy connect; connecting after would discard this transaction
+            connection.connect! unless connection.connected?
+
             @#{kind} = timeout
             # If we have set an explicit timeout, the transaction has state that must be materialized
             # separately from any other transaction, so it cannot be `restartable`

@@ -437,6 +437,26 @@ describe ActiveRecord::ConnectionAdapters::PostgreSQLAdapter do
     end
   end
 
+  describe "#statement_timeout= on a connection that hasn't been used yet" do
+    before { connection.disconnect! }
+
+    it "materializes the transaction against a live connection" do
+      expect do
+        connection.transaction do
+          connection.statement_timeout = 30
+          connection.select_value("SELECT 1")
+        end
+      end.not_to raise_error
+    end
+
+    it "still applies the timeout" do
+      connection.transaction do
+        connection.statement_timeout = 0.01
+        expect { connection.execute("SELECT pg_sleep(3)") }.to raise_error(ActiveRecord::QueryCanceled)
+      end
+    end
+  end
+
   describe "#rename_constraint" do
     around do |example|
       connection.dont_execute(&example)
