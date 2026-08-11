@@ -17,7 +17,7 @@ module ActiveRecord
             @#{kind} = timeout
             # If we have set an explicit timeout, the transaction has state that must be materialized
             # separately from any other transaction, so it cannot be `restartable`
-            dirty! unless ::Rails.version < '7.1'
+            dirty!
             return unless materialized?
             connection.set(#{kind.inspect}, "\#{(timeout * 1000).to_i}ms", local: true)
           end
